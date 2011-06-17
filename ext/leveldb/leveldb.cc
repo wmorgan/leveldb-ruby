@@ -71,6 +71,24 @@ static VALUE db_get(VALUE self, VALUE v_key) {
   return rb_str_new2(value.c_str());
 }
 
+static VALUE db_delete(VALUE self, VALUE v_key) {
+  Check_Type(v_key, T_STRING);
+
+  bound_db* db;
+  Data_Get_Struct(self, bound_db, db);
+
+  std::string key = std::string((char*)RSTRING_PTR(v_key));
+  std::string value;
+  leveldb::Status status = db->db->Get(leveldb::ReadOptions(), key, &value);
+
+  if(status.IsNotFound()) return Qnil;
+
+  status = db->db->Delete(leveldb::WriteOptions(), key);
+  RAISE_ON_ERROR(status);
+
+  return rb_str_new2(value.c_str());
+}
+
 static VALUE db_exists(VALUE self, VALUE v_key) {
   Check_Type(v_key, T_STRING);
 
@@ -151,6 +169,7 @@ void Init_leveldb() {
   rb_define_singleton_method(c_db, "make", (VALUE (*)(...))db_make, 3);
   rb_define_method(c_db, "initialize", (VALUE (*)(...))db_init, 1);
   rb_define_method(c_db, "get", (VALUE (*)(...))db_get, 1);
+  rb_define_method(c_db, "delete", (VALUE (*)(...))db_delete, 1);
   rb_define_method(c_db, "put", (VALUE (*)(...))db_put, 2);
   rb_define_method(c_db, "exists?", (VALUE (*)(...))db_exists, 1);
   rb_define_method(c_db, "close", (VALUE (*)(...))db_close, 0);
