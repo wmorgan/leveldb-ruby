@@ -2,6 +2,7 @@ require 'leveldb/leveldb' # the c extension
 
 module LevelDB
 class DB
+  include Enumerable
   class << self
 
     ## Loads or creates a LevelDB database as necessary, stored on disk at
@@ -25,5 +26,8 @@ class DB
 
   alias :includes? :exists?
   alias :contains? :exists?
+
+  def keys; map { |k, v| k } end
+  def values; map { |k, v| v } end
 end
 end

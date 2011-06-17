@@ -116,6 +116,26 @@ static VALUE db_size(VALUE self) {
   return INT2NUM(count);
 }
 
+static VALUE db_each(VALUE self) {
+  bound_db* db;
+  Data_Get_Struct(self, bound_db, db);
+  leveldb::Iterator* it = db->db->NewIterator(leveldb::ReadOptions());
+
+  for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    VALUE key = rb_str_new2(it->key().ToString().c_str());
+    VALUE value = rb_str_new2(it->value().ToString().c_str());
+    VALUE ary = rb_ary_new2(2);
+    rb_ary_push(ary, key);
+    rb_ary_push(ary, value);
+    rb_yield(ary);
+  }
+
+  RAISE_ON_ERROR(it->status());
+  delete it;
+
+  return self;
+}
+
 static VALUE db_init(VALUE self, VALUE v_pathname) {
   rb_iv_set(self, "@pathname", v_pathname);
   return self;
@@ -135,6 +155,7 @@ void Init_leveldb() {
   rb_define_method(c_db, "exists?", (VALUE (*)(...))db_exists, 1);
   rb_define_method(c_db, "close", (VALUE (*)(...))db_close, 0);
   rb_define_method(c_db, "size", (VALUE (*)(...))db_size, 0);
+  rb_define_method(c_db, "each", (VALUE (*)(...))db_each, 0);
 
   c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
 }
