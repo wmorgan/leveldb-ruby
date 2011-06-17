@@ -1,0 +1,9 @@
+.*.swp
+*.o
+ext/leveldb/Makefile
+ext/leveldb/extconf.h
+ext/leveldb/leveldb.so
+ext/leveldb/libleveldb.a
+leveldb/libleveldb.a
+leveldb/leveldb.gyp
+pkg

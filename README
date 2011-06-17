@@ -1,0 +1,17 @@
+LevelDB Ruby bindings.
+
+Do this:
+
+  gem install leveldb-ruby
+
+
+And then run this:
+
+  require 'rubygems' # on ruby < 1.9
+  require 'leveldb'
+
+  db = LevelDB.new "/tmp/asdf"
+  db.put "it", "works"
+  db.get "it"
+
+Only a very few operations are supported right now:
