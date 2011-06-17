@@ -62,8 +62,9 @@ static VALUE db_get(VALUE self, VALUE v_key) {
   std::string key = std::string((char*)RSTRING_PTR(v_key));
   std::string value;
   leveldb::Status status = db->db->Get(leveldb::ReadOptions(), key, &value);
-  RAISE_ON_ERROR(status);
+  if(status.IsNotFound()) return Qnil;
 
+  RAISE_ON_ERROR(status);
   return rb_str_new2(value.c_str());
 }
 
