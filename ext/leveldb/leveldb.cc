@@ -102,6 +102,20 @@ static VALUE db_put(VALUE self, VALUE v_key, VALUE v_value) {
   return v_value;
 }
 
+static VALUE db_size(VALUE self) {
+  long count = 0;
+
+  bound_db* db;
+  Data_Get_Struct(self, bound_db, db);
+  leveldb::Iterator* it = db->db->NewIterator(leveldb::ReadOptions());
+
+  // apparently this is how we have to do it. slow and painful!
+  for (it->SeekToFirst(); it->Valid(); it->Next()) count++;
+  RAISE_ON_ERROR(it->status());
+  delete it;
+  return INT2NUM(count);
+}
+
 static VALUE db_init(VALUE self, VALUE v_pathname) {
   rb_iv_set(self, "@pathname", v_pathname);
   return self;
@@ -120,6 +134,7 @@ void Init_leveldb() {
   rb_define_method(c_db, "put", (VALUE (*)(...))db_put, 2);
   rb_define_method(c_db, "exists?", (VALUE (*)(...))db_exists, 1);
   rb_define_method(c_db, "close", (VALUE (*)(...))db_close, 0);
+  rb_define_method(c_db, "size", (VALUE (*)(...))db_size, 0);
 
   c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
 }
