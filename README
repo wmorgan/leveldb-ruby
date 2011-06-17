@@ -15,3 +15,14 @@ And then run this:
   db.get "it"
 
 Only a very few operations are supported right now:
+
+  DB.new    # creates or loads as necessary
+  DB.create # dies if it already exists
+  DB.load   # dies unless it alread exists
+
+  DB#get    # alias: DB#[]
+  DB#put    # alias: DB#[]=
+  DB#delete
+
+  DB#each
+  ... and all the enumerable methods
