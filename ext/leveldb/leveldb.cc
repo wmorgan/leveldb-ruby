@@ -24,11 +24,6 @@ typedef struct bound_db {
   leveldb::DB* db;
 } bound_db;
 
-typedef struct bound_batch {
-  bound_db* db;
-  leveldb::WriteBatch* batch;
-} bound_batch;
-
 static void db_free(bound_db* db) {
   delete db->db;
 }
@@ -51,6 +46,14 @@ static VALUE db_make(VALUE klass, VALUE v_pathname, VALUE v_create_if_necessary,
   rb_obj_call_init(o_db, 1, argv);
 
   return o_db;
+}
+
+static VALUE db_close(VALUE self) {
+  bound_db* db;
+  Data_Get_Struct(self, bound_db, db);
+
+  db_free(db);
+  return Qtrue;
 }
 
 static VALUE db_get(VALUE self, VALUE v_key) {
@@ -116,6 +119,7 @@ void Init_leveldb() {
   rb_define_method(c_db, "get", (VALUE (*)(...))db_get, 1);
   rb_define_method(c_db, "put", (VALUE (*)(...))db_put, 2);
   rb_define_method(c_db, "exists?", (VALUE (*)(...))db_exists, 1);
+  rb_define_method(c_db, "close", (VALUE (*)(...))db_close, 0);
 
   c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
 }
