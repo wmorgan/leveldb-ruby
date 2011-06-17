@@ -10,8 +10,8 @@ spec = Gem::Specification.new do |s|
  s.authors = ["William Morgan"]
  s.summary = "a Ruby binding to LevelDB"
  s.homepage = "http://github.com/wmorgan/leveldb-ruby"
- s.files = %w(README ext/leveldb/extconf.rb lib/leveldb.rb ext/leveldb/leveldb.cc)
- Find.find("leveldb") { |x| s.files << x }
+ s.files = %w(README ext/leveldb/extconf.rb lib/leveldb.rb ext/leveldb/leveldb.cc leveldb/Makefile)
+ Find.find("leveldb") { |x| s.files << x if x =~ /\.(cc|h)$/}
  s.extensions = %w(ext/leveldb/extconf.rb)
  s.executables = []
  s.extra_rdoc_files = %w(README ext/leveldb/leveldb.cc)
