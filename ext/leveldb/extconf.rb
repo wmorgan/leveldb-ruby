@@ -2,7 +2,7 @@ require 'mkmf'
 require 'fileutils'
 
 Dir.chdir "../../leveldb"
-system "make" or abort
+system "make libleveldb.a" or abort
 Dir.chdir "../ext/leveldb"
 
 $CFLAGS << " -I../../leveldb/include"
