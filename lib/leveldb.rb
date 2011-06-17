@@ -26,6 +26,9 @@ class DB
 
   alias :includes? :exists?
   alias :contains? :exists?
+  alias :member? :exists?
+  alias :[] :get
+  alias :[]= :put
 
   def keys; map { |k, v| k } end
   def values; map { |k, v| v } end
