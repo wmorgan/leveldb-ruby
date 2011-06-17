@@ -22,5 +22,8 @@ class DB
       make pathname, false, false
     end
   end
+
+  alias :includes? :exists?
+  alias :contains? :exists?
 end
 end

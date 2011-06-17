@@ -68,6 +68,20 @@ static VALUE db_get(VALUE self, VALUE v_key) {
   return rb_str_new2(value.c_str());
 }
 
+static VALUE db_exists(VALUE self, VALUE v_key) {
+  Check_Type(v_key, T_STRING);
+
+  bound_db* db;
+  Data_Get_Struct(self, bound_db, db);
+
+  std::string key = std::string((char*)RSTRING_PTR(v_key));
+  std::string value;
+  leveldb::Status status = db->db->Get(leveldb::ReadOptions(), key, &value);
+
+  if(status.IsNotFound()) return Qfalse;
+  return Qtrue;
+}
+
 static VALUE db_put(VALUE self, VALUE v_key, VALUE v_value) {
   Check_Type(v_key, T_STRING);
   Check_Type(v_value, T_STRING);
@@ -79,6 +93,7 @@ static VALUE db_put(VALUE self, VALUE v_key, VALUE v_value) {
   std::string value = std::string((char*)RSTRING_PTR(v_value));
 
   leveldb::Status status = db->db->Put(leveldb::WriteOptions(), key, value);
+
   RAISE_ON_ERROR(status);
 
   return v_value;
@@ -100,8 +115,7 @@ void Init_leveldb() {
   rb_define_method(c_db, "initialize", (VALUE (*)(...))db_init, 1);
   rb_define_method(c_db, "get", (VALUE (*)(...))db_get, 1);
   rb_define_method(c_db, "put", (VALUE (*)(...))db_put, 2);
-  //rb_define_singleton_method(c_index, "create", db_create, 1);
-  //rb_define_singleton_method(c_index, "load", db_load, 1);
+  rb_define_method(c_db, "exists?", (VALUE (*)(...))db_exists, 1);
 
   c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
 }
