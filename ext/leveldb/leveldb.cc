@@ -1,7 +1,7 @@
 #include <ruby.h>
 
 #include "leveldb/db.h"
-#include "leveldb/write_batch.h"
+#include "leveldb/slice.h"
 
 static VALUE m_leveldb;
 static VALUE c_db;
@@ -56,19 +56,22 @@ static VALUE db_close(VALUE self) {
   return Qtrue;
 }
 
+#define RUBY_STRING_TO_SLICE(x) leveldb::Slice(RSTRING_PTR(x), RSTRING_LEN(x))
+#define SLICE_TO_RUBY_STRING(x) rb_str_new(x.data(), x.size())
+#define STRING_TO_RUBY_STRING(x) rb_str_new(x.data(), x.size())
 static VALUE db_get(VALUE self, VALUE v_key) {
   Check_Type(v_key, T_STRING);
 
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
 
-  std::string key = std::string((char*)RSTRING_PTR(v_key));
+  leveldb::Slice key = RUBY_STRING_TO_SLICE(v_key);
   std::string value;
   leveldb::Status status = db->db->Get(leveldb::ReadOptions(), key, &value);
   if(status.IsNotFound()) return Qnil;
 
   RAISE_ON_ERROR(status);
-  return rb_str_new2(value.c_str());
+  return STRING_TO_RUBY_STRING(value);
 }
 
 static VALUE db_delete(VALUE self, VALUE v_key) {
@@ -77,7 +80,7 @@ static VALUE db_delete(VALUE self, VALUE v_key) {
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
 
-  std::string key = std::string((char*)RSTRING_PTR(v_key));
+  leveldb::Slice key = RUBY_STRING_TO_SLICE(v_key);
   std::string value;
   leveldb::Status status = db->db->Get(leveldb::ReadOptions(), key, &value);
 
@@ -86,7 +89,7 @@ static VALUE db_delete(VALUE self, VALUE v_key) {
   status = db->db->Delete(leveldb::WriteOptions(), key);
   RAISE_ON_ERROR(status);
 
-  return rb_str_new2(value.c_str());
+  return STRING_TO_RUBY_STRING(value);
 }
 
 static VALUE db_exists(VALUE self, VALUE v_key) {
@@ -95,7 +98,7 @@ static VALUE db_exists(VALUE self, VALUE v_key) {
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
 
-  std::string key = std::string((char*)RSTRING_PTR(v_key));
+  leveldb::Slice key = RUBY_STRING_TO_SLICE(v_key);
   std::string value;
   leveldb::Status status = db->db->Get(leveldb::ReadOptions(), key, &value);
 
@@ -110,9 +113,8 @@ static VALUE db_put(VALUE self, VALUE v_key, VALUE v_value) {
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
 
-  std::string key = std::string((char*)RSTRING_PTR(v_key));
-  std::string value = std::string((char*)RSTRING_PTR(v_value));
-
+  leveldb::Slice key = RUBY_STRING_TO_SLICE(v_key);
+  leveldb::Slice value = RUBY_STRING_TO_SLICE(v_value);
   leveldb::Status status = db->db->Put(leveldb::WriteOptions(), key, value);
 
   RAISE_ON_ERROR(status);
@@ -140,8 +142,8 @@ static VALUE db_each(VALUE self) {
   leveldb::Iterator* it = db->db->NewIterator(leveldb::ReadOptions());
 
   for (it->SeekToFirst(); it->Valid(); it->Next()) {
-    VALUE key = rb_str_new2(it->key().ToString().c_str());
-    VALUE value = rb_str_new2(it->value().ToString().c_str());
+    VALUE key = SLICE_TO_RUBY_STRING(it->key());
+    VALUE value = SLICE_TO_RUBY_STRING(it->value());
     VALUE ary = rb_ary_new2(2);
     rb_ary_push(ary, key);
     rb_ary_push(ary, value);
