@@ -7,11 +7,20 @@
 #ifndef STORAGE_LEVELDB_PORT_PORT_POSIX_H_
 #define STORAGE_LEVELDB_PORT_PORT_POSIX_H_
 
+#define GCC_VERSION (__GNUC__ * 10000 \
+                      + __GNUC_MINOR__ * 100 \
+                      + __GNUC_PATCHLEVEL__)
 #include <endian.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <string>
+
+#if GCC_VERSION > 40500 // check for GCC > 4.5
+#include <atomic>
+#else
 #include <cstdatomic>
+#endif // if GCC_VERSION > 40500
+
 #include <cstring>
 
 namespace leveldb {
