@@ -1,0 +1,3 @@
+rake gem
+gem push pkg/leveldb-ruby-$VERSION.gem
+git archive --format=tar --prefix=leveldb-ruby-$VERSION/ HEAD | gzip -9 > leveldb-ruby-$VERSION.tar.gz
