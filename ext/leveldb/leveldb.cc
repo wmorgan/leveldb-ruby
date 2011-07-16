@@ -25,7 +25,11 @@ typedef struct bound_db {
 } bound_db;
 
 static void db_free(bound_db* db) {
-  delete db->db;
+  if(db->db != NULL) {
+    delete db->db;
+    db->db = NULL;
+  }
+  delete db;
 }
 
 static VALUE db_make(VALUE klass, VALUE v_pathname, VALUE v_create_if_necessary, VALUE v_break_if_exists) {
@@ -52,7 +56,10 @@ static VALUE db_close(VALUE self) {
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
 
-  db_free(db);
+  if(db->db != NULL) {
+    delete db->db;
+    db->db = NULL;
+  }
   return Qtrue;
 }
 
