@@ -10,7 +10,7 @@ And then run this:
   require 'rubygems' # on ruby < 1.9
   require 'leveldb'
 
-  db = LevelDB.new "/tmp/asdf"
+  db = LevelDB::DB.new "/tmp/asdf"
   db.put "it", "works"
   db.get "it"
 
