@@ -8,20 +8,28 @@ class DB
     ## Loads or creates a LevelDB database as necessary, stored on disk at
     ## +pathname+.
     def new pathname
-      make pathname, true, false
+      make path_string(pathname), true, false
     end
 
     ## Creates a new LevelDB database stored on disk at +pathname+. Throws an
     ## exception if the database already exists.
     def create pathname
-      make pathname, true, true
+      make path_string(pathname), true, true
     end
 
     ## Loads a LevelDB database stored on disk at +pathname+. Throws an
     ## exception unless the database already exists.
     def load pathname
-      make pathname, false, false
+      make path_string(pathname), false, false
     end
+
+    private
+
+    ## Coerces the argument into a String for use as a filename/-path
+    def path_string pathname
+      File.respond_to?(:path) ? File.path(pathname) : pathname.to_str
+    end
+
   end
 
   alias :includes? :exists?
