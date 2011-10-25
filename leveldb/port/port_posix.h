@@ -7,26 +7,46 @@
 #ifndef STORAGE_LEVELDB_PORT_PORT_POSIX_H_
 #define STORAGE_LEVELDB_PORT_PORT_POSIX_H_
 
-#define GCC_VERSION (__GNUC__ * 10000 \
-                      + __GNUC_MINOR__ * 100 \
-                      + __GNUC_PATCHLEVEL__)
-#include <endian.h>
+#if defined(OS_MACOSX) || defined(OS_FREEBSD)
+  #include <machine/endian.h>
+#elif defined(OS_SOLARIS)
+  #include <sys/isa_defs.h>
+  #ifdef _LITTLE_ENDIAN
+    #define LITTLE_ENDIAN
+  #else
+    #define BIG_ENDIAN
+  #endif
+#else
+  #include <endian.h>
+#endif
 #include <pthread.h>
+#ifdef SNAPPY
+#include <snappy.h>
+#endif
 #include <stdint.h>
 #include <string>
+#include "port/atomic_pointer.h"
 
-#if GCC_VERSION > 40500 // check for GCC > 4.5
-#include <atomic>
+#ifdef LITTLE_ENDIAN
+#define IS_LITTLE_ENDIAN true
 #else
-#include <cstdatomic>
-#endif // if GCC_VERSION > 40500
+#define IS_LITTLE_ENDIAN (__BYTE_ORDER == __LITTLE_ENDIAN)
+#endif
 
-#include <cstring>
+#if defined(OS_MACOSX) || defined(OS_SOLARIS) || defined(OS_FREEBSD)
+#define fread_unlocked fread
+#define fwrite_unlocked fwrite
+#define fflush_unlocked fflush
+#endif
+
+#if defined(OS_MACOSX) || defined(OS_FREEBSD)
+#define fdatasync fsync
+#endif
 
 namespace leveldb {
 namespace port {
 
-static const bool kLittleEndian = (__BYTE_ORDER == __LITTLE_ENDIAN);
+static const bool kLittleEndian = IS_LITTLE_ENDIAN;
 
 class CondVar;
 
@@ -60,44 +80,42 @@ class CondVar {
   Mutex* mu_;
 };
 
-// Storage for a lock-free pointer
-class AtomicPointer {
- private:
-  std::atomic<void*> rep_;
- public:
-  AtomicPointer() { }
-  explicit AtomicPointer(void* v) : rep_(v) { }
-  inline void* Acquire_Load() const {
-    return rep_.load(std::memory_order_acquire);
-  }
-  inline void Release_Store(void* v) {
-    rep_.store(v, std::memory_order_release);
-  }
-  inline void* NoBarrier_Load() const {
-    return rep_.load(std::memory_order_relaxed);
-  }
-  inline void NoBarrier_Store(void* v) {
-    rep_.store(v, std::memory_order_relaxed);
-  }
-};
+inline bool Snappy_Compress(const char* input, size_t length,
+                            ::std::string* output) {
+#ifdef SNAPPY
+  output->resize(snappy::MaxCompressedLength(length));
+  size_t outlen;
+  snappy::RawCompress(input, length, &(*output)[0], &outlen);
+  output->resize(outlen);
+  return true;
+#endif
 
-// TODO(gabor): Implement actual compress
-inline bool Snappy_Compress(const char* input, size_t input_length,
-                            std::string* output) {
   return false;
 }
 
-// TODO(gabor): Implement actual uncompress
-inline bool Snappy_Uncompress(const char* input_data, size_t input_length,
-                              std::string* output) {
+inline bool Snappy_GetUncompressedLength(const char* input, size_t length,
+                                         size_t* result) {
+#ifdef SNAPPY
+  return snappy::GetUncompressedLength(input, length, result);
+#else
   return false;
+#endif
+}
+
+inline bool Snappy_Uncompress(const char* input, size_t length,
+                              char* output) {
+#ifdef SNAPPY
+  return snappy::RawUncompress(input, length, output);
+#else
+  return false;
+#endif
 }
 
 inline bool GetHeapProfile(void (*func)(void*, const char*, int), void* arg) {
   return false;
 }
 
-}
-}
+} // namespace port
+} // namespace leveldb
 
 #endif  // STORAGE_LEVELDB_PORT_PORT_POSIX_H_

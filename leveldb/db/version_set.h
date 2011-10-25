@@ -35,6 +35,26 @@ class Version;
 class VersionSet;
 class WritableFile;
 
+// Return the smallest index i such that files[i]->largest >= key.
+// Return files.size() if there is no such file.
+// REQUIRES: "files" contains a sorted list of non-overlapping files.
+extern int FindFile(const InternalKeyComparator& icmp,
+                    const std::vector<FileMetaData*>& files,
+                    const Slice& key);
+
+// Returns true iff some file in "files" overlaps the user key range
+// [*smallest,*largest].
+// smallest==NULL represents a key smaller than all keys in the DB.
+// largest==NULL represents a key largest than all keys in the DB.
+// REQUIRES: If disjoint_sorted_files, files[] contains disjoint ranges
+//           in sorted order.
+extern bool SomeFileOverlapsRange(
+    const InternalKeyComparator& icmp,
+    bool disjoint_sorted_files,
+    const std::vector<FileMetaData*>& files,
+    const Slice* smallest_user_key,
+    const Slice* largest_user_key);
+
 class Version {
  public:
   // Append to *iters a sequence of iterators that will
@@ -42,10 +62,46 @@ class Version {
   // REQUIRES: This version has been saved (see VersionSet::SaveTo)
   void AddIterators(const ReadOptions&, std::vector<Iterator*>* iters);
 
+  // Lookup the value for key.  If found, store it in *val and
+  // return OK.  Else return a non-OK status.  Fills *stats.
+  // REQUIRES: lock is not held
+  struct GetStats {
+    FileMetaData* seek_file;
+    int seek_file_level;
+  };
+  Status Get(const ReadOptions&, const LookupKey& key, std::string* val,
+             GetStats* stats);
+
+  // Adds "stats" into the current state.  Returns true if a new
+  // compaction may need to be triggered, false otherwise.
+  // REQUIRES: lock is held
+  bool UpdateStats(const GetStats& stats);
+
   // Reference count management (so Versions do not disappear out from
   // under live iterators)
   void Ref();
   void Unref();
+
+  void GetOverlappingInputs(
+      int level,
+      const InternalKey* begin,         // NULL means before all keys
+      const InternalKey* end,           // NULL means after all keys
+      std::vector<FileMetaData*>* inputs);
+
+  // Returns true iff some file in the specified level overlaps
+  // some part of [*smallest_user_key,*largest_user_key].
+  // smallest_user_key==NULL represents a key smaller than all keys in the DB.
+  // largest_user_key==NULL represents a key largest than all keys in the DB.
+  bool OverlapInLevel(int level,
+                      const Slice* smallest_user_key,
+                      const Slice* largest_user_key);
+
+  // Return the level at which we should place a new memtable compaction
+  // result that covers the range [smallest_user_key,largest_user_key].
+  int PickLevelForMemTableOutput(const Slice& smallest_user_key,
+                                 const Slice& largest_user_key);
+
+  int NumFiles(int level) const { return files_[level].size(); }
 
   // Return a human readable string that describes this version's contents.
   std::string DebugString() const;
@@ -65,6 +121,10 @@ class Version {
   // List of files per level
   std::vector<FileMetaData*> files_[config::kNumLevels];
 
+  // Next file to compact based on seek stats.
+  FileMetaData* file_to_compact_;
+  int file_to_compact_level_;
+
   // Level that should be compacted next and its compaction score.
   // Score < 1 means compaction is not strictly needed.  These fields
   // are initialized by Finalize().
@@ -73,6 +133,8 @@ class Version {
 
   explicit Version(VersionSet* vset)
       : vset_(vset), next_(this), prev_(this), refs_(0),
+        file_to_compact_(NULL),
+        file_to_compact_level_(-1),
         compaction_score_(-1),
         compaction_level_(-1) {
   }
@@ -94,14 +156,13 @@ class VersionSet {
 
   // Apply *edit to the current version to form a new descriptor that
   // is both saved to persistent state and installed as the new
-  // current version.
-  Status LogAndApply(VersionEdit* edit);
+  // current version.  Will release *mu while actually writing to the file.
+  // REQUIRES: *mu is held on entry.
+  // REQUIRES: no other thread concurrently calls LogAndApply()
+  Status LogAndApply(VersionEdit* edit, port::Mutex* mu);
 
   // Recover the last saved descriptor from persistent storage.
   Status Recover();
-
-  // Save current contents to *log
-  Status WriteSnapshot(log::Writer* log);
 
   // Return the current version.
   Version* current() const { return current_; }
@@ -127,6 +188,9 @@ class VersionSet {
     last_sequence_ = s;
   }
 
+  // Mark the specified file number as used.
+  void MarkFileNumberUsed(uint64_t number);
+
   // Return the current log file number.
   uint64_t LogNumber() const { return log_number_; }
 
@@ -146,8 +210,8 @@ class VersionSet {
   // the result.
   Compaction* CompactRange(
       int level,
-      const InternalKey& begin,
-      const InternalKey& end);
+      const InternalKey* begin,
+      const InternalKey* end);
 
   // Return the maximum overlapping data (in bytes) at next level for any
   // file at a level >= 1.
@@ -158,7 +222,10 @@ class VersionSet {
   Iterator* MakeInputIterator(Compaction* c);
 
   // Returns true iff some level needs a compaction.
-  bool NeedsCompaction() const { return current_->compaction_score_ >= 1; }
+  bool NeedsCompaction() const {
+    Version* v = current_;
+    return (v->compaction_score_ >= 1) || (v->file_to_compact_ != NULL);
+  }
 
   // Add all files listed in any live version to *live.
   // May also mutate some internal state.
@@ -183,12 +250,6 @@ class VersionSet {
 
   void Finalize(Version* v);
 
-  void GetOverlappingInputs(
-      int level,
-      const InternalKey& begin,
-      const InternalKey& end,
-      std::vector<FileMetaData*>* inputs);
-
   void GetRange(const std::vector<FileMetaData*>& inputs,
                 InternalKey* smallest,
                 InternalKey* largest);
@@ -199,6 +260,9 @@ class VersionSet {
                  InternalKey* largest);
 
   void SetupOtherInputs(Compaction* c);
+
+  // Save current contents to *log
+  Status WriteSnapshot(log::Writer* log);
 
   void AppendVersion(Version* v);
 

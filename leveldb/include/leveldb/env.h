@@ -22,6 +22,7 @@
 namespace leveldb {
 
 class FileLock;
+class Logger;
 class RandomAccessFile;
 class SequentialFile;
 class Slice;
@@ -134,8 +135,8 @@ class Env {
   // same directory.
   virtual Status GetTestDirectory(std::string* path) = 0;
 
-  // Write an entry to the log file with the specified format.
-  virtual void Logv(WritableFile* log, const char* format, va_list ap) = 0;
+  // Create and return a log file for storing informational messages.
+  virtual Status NewLogger(const std::string& fname, Logger** result) = 0;
 
   // Returns the number of micro-seconds since some fixed point in time. Only
   // useful for computing deltas of time.
@@ -159,6 +160,8 @@ class SequentialFile {
   // Read up to "n" bytes from the file.  "scratch[0..n-1]" may be
   // written by this routine.  Sets "*result" to the data that was
   // read (including if fewer than "n" bytes were successfully read).
+  // May set "*result" to point at data in "scratch[0..n-1]", so
+  // "scratch[0..n-1]" must be live when "*result" is used.
   // If an error was encountered, returns a non-OK status.
   //
   // REQUIRES: External synchronization
@@ -183,8 +186,10 @@ class RandomAccessFile {
   // Read up to "n" bytes from the file starting at "offset".
   // "scratch[0..n-1]" may be written by this routine.  Sets "*result"
   // to the data that was read (including if fewer than "n" bytes were
-  // successfully read).  If an error was encountered, returns a
-  // non-OK status.
+  // successfully read).  May set "*result" to point at data in
+  // "scratch[0..n-1]", so "scratch[0..n-1]" must be live when
+  // "*result" is used.  If an error was encountered, returns a non-OK
+  // status.
   //
   // Safe for concurrent use by multiple threads.
   virtual Status Read(uint64_t offset, size_t n, Slice* result,
@@ -210,6 +215,22 @@ class WritableFile {
   void operator=(const WritableFile&);
 };
 
+// An interface for writing log messages.
+class Logger {
+ public:
+  Logger() { }
+  virtual ~Logger();
+
+  // Write an entry to the log file with the specified format.
+  virtual void Logv(const char* format, va_list ap) = 0;
+
+ private:
+  // No copying allowed
+  Logger(const Logger&);
+  void operator=(const Logger&);
+};
+
+
 // Identifies a locked file.
 class FileLock {
  public:
@@ -222,9 +243,9 @@ class FileLock {
 };
 
 // Log the specified data to *info_log if info_log is non-NULL.
-extern void Log(Env* env, WritableFile* info_log, const char* format, ...)
+extern void Log(Logger* info_log, const char* format, ...)
 #   if defined(__GNUC__) || defined(__clang__)
-    __attribute__((__format__ (__printf__, 3, 4)))
+    __attribute__((__format__ (__printf__, 2, 3)))
 #   endif
     ;
 
@@ -241,8 +262,8 @@ extern Status ReadFileToString(Env* env, const std::string& fname,
 // functionality of another Env.
 class EnvWrapper : public Env {
  public:
-  // Initialize an EnvWrapper that delegates all calls to *target
-  explicit EnvWrapper(Env* target) : target_(target) { }
+  // Initialize an EnvWrapper that delegates all calls to *t
+  explicit EnvWrapper(Env* t) : target_(t) { }
   virtual ~EnvWrapper();
 
   // Return the target to which this Env forwards all calls
@@ -284,8 +305,8 @@ class EnvWrapper : public Env {
   virtual Status GetTestDirectory(std::string* path) {
     return target_->GetTestDirectory(path);
   }
-  virtual void Logv(WritableFile* log, const char* format, va_list ap) {
-    return target_->Logv(log, format, ap);
+  virtual Status NewLogger(const std::string& fname, Logger** result) {
+    return target_->NewLogger(fname, result);
   }
   uint64_t NowMicros() {
     return target_->NowMicros();

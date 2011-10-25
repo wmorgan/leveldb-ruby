@@ -38,14 +38,12 @@ class DBImpl : public DB {
   virtual void ReleaseSnapshot(const Snapshot* snapshot);
   virtual bool GetProperty(const Slice& property, std::string* value);
   virtual void GetApproximateSizes(const Range* range, int n, uint64_t* sizes);
+  virtual void CompactRange(const Slice* begin, const Slice* end);
 
   // Extra methods (for testing) that are not in the public DB interface
 
-  // Compact any files in the named level that overlap [begin,end]
-  void TEST_CompactRange(
-      int level,
-      const std::string& begin,
-      const std::string& end);
+  // Compact any files in the named level that overlap [*begin,*end]
+  void TEST_CompactRange(int level, const Slice* begin, const Slice* end);
 
   // Force current memtable contents to be compacted.
   Status TEST_CompactMemTable();
@@ -85,7 +83,12 @@ class DBImpl : public DB {
                         VersionEdit* edit,
                         SequenceNumber* max_sequence);
 
-  Status WriteLevel0Table(MemTable* mem, VersionEdit* edit);
+  Status WriteLevel0Table(MemTable* mem, VersionEdit* edit, Version* base);
+
+  // Only thread is allowed to log at a time.
+  struct LoggerId { };          // Opaque identifier for logging thread
+  void AcquireLoggingResponsibility(LoggerId* self);
+  void ReleaseLoggingResponsibility(LoggerId* self);
 
   Status MakeRoomForWrite(bool force /* compact even if there is room? */);
 
@@ -119,13 +122,15 @@ class DBImpl : public DB {
   // State below is protected by mutex_
   port::Mutex mutex_;
   port::AtomicPointer shutting_down_;
-  port::CondVar bg_cv_;          // Signalled when !bg_compaction_scheduled_
-  port::CondVar compacting_cv_;  // Signalled when !compacting_
+  port::CondVar bg_cv_;          // Signalled when background work finishes
   MemTable* mem_;
   MemTable* imm_;                // Memtable being compacted
   port::AtomicPointer has_imm_;  // So bg thread can detect non-NULL imm_
   WritableFile* logfile_;
+  uint64_t logfile_number_;
   log::Writer* log_;
+  LoggerId* logger_;            // NULL, or the id of the current logging thread
+  port::CondVar logger_cv_;     // For threads waiting to log
   SnapshotList snapshots_;
 
   // Set of table files to protect from deletion because they are
@@ -135,8 +140,15 @@ class DBImpl : public DB {
   // Has a background compaction been scheduled or is running?
   bool bg_compaction_scheduled_;
 
-  // Is there a compaction running?
-  bool compacting_;
+  // Information for a manual compaction
+  struct ManualCompaction {
+    int level;
+    bool done;
+    const InternalKey* begin;   // NULL means beginning of key range
+    const InternalKey* end;     // NULL means end of key range
+    InternalKey tmp_storage;    // Used to keep track of compaction progress
+  };
+  ManualCompaction* manual_compaction_;
 
   VersionSet* versions_;
 

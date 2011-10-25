@@ -31,6 +31,18 @@ std::string ParsedInternalKey::DebugString() const {
   return result;
 }
 
+std::string InternalKey::DebugString() const {
+  std::string result;
+  ParsedInternalKey parsed;
+  if (ParseInternalKey(rep_, &parsed)) {
+    result = parsed.DebugString();
+  } else {
+    result = "(bad)";
+    result.append(EscapeString(rep_));
+  }
+  return result;
+}
+
 const char* InternalKeyComparator::Name() const {
   return "leveldb.InternalKeyComparator";
 }
@@ -82,6 +94,25 @@ void InternalKeyComparator::FindShortSuccessor(std::string* key) const {
     assert(this->Compare(*key, tmp) < 0);
     key->swap(tmp);
   }
+}
+
+LookupKey::LookupKey(const Slice& user_key, SequenceNumber s) {
+  size_t usize = user_key.size();
+  size_t needed = usize + 13;  // A conservative estimate
+  char* dst;
+  if (needed <= sizeof(space_)) {
+    dst = space_;
+  } else {
+    dst = new char[needed];
+  }
+  start_ = dst;
+  dst = EncodeVarint32(dst, usize + 8);
+  kstart_ = dst;
+  memcpy(dst, user_key.data(), usize);
+  dst += usize;
+  EncodeFixed64(dst, PackSequenceAndType(s, kValueTypeForSeek));
+  dst += 8;
+  end_ = dst;
 }
 
 }
