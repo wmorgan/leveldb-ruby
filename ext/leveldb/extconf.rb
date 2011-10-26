@@ -8,5 +8,8 @@ Dir.chdir "../ext/leveldb"
 CONFIG['LDSHARED'] = "$(CXX) -shared"
 
 $CFLAGS << " -I../../leveldb/include"
-$LIBS << " -L../../leveldb -lleveldb"
+$CFLAGS.sub! "-arch i386", ""
+$LDFLAGS.sub! "-arch i386", ""
+$LIBS << " -L../../leveldb -lleveldb -lruby"
+
 create_makefile "leveldb/leveldb"
