@@ -36,7 +36,6 @@ static VALUE db_make(VALUE klass, VALUE v_pathname, VALUE v_create_if_necessary,
   Check_Type(v_pathname, T_STRING);
 
   bound_db* db = new bound_db;
-  char* pathname_c = RSTRING_PTR(v_pathname);
   std::string pathname = std::string((char*)RSTRING_PTR(v_pathname));
 
   leveldb::Options options;
@@ -170,8 +169,6 @@ static VALUE db_init(VALUE self, VALUE v_pathname) {
 
 extern "C" {
 void Init_leveldb() {
-  VALUE m_leveldb;
-
   m_leveldb = rb_define_module("LevelDB");
 
   c_db = rb_define_class_under(m_leveldb, "DB", rb_cObject);
