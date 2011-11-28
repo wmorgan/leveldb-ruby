@@ -146,23 +146,24 @@ static VALUE db_iterate(VALUE self, VALUE key_from, VALUE key_to, bool reversed)
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
   leveldb::Iterator* it = db->db->NewIterator(leveldb::ReadOptions());
+  ID to_s = rb_intern("to_s");
 
-  if(NIL_P(key_from)) {
+  if(RTEST(key_from)) {
+    it->Seek(RUBY_STRING_TO_SLICE(rb_funcall(key_from, to_s, 0)));
+  } else {
     if(reversed) {
       it->SeekToLast();
     } else {
       it->SeekToFirst();
     }
-  } else {
-    it->Seek(RUBY_STRING_TO_SLICE(key_from));
   }
 
   bool passed_limit = false;
-  bool check_limit = NIL_P(key_to) ? false : true;
+  bool check_limit = RTEST(key_to);
   std::string key_to_str;
 
   if(check_limit)
-    key_to_str = RUBY_STRING_TO_SLICE(key_to).ToString();
+    key_to_str = RUBY_STRING_TO_SLICE(rb_funcall(key_to, to_s, 0)).ToString();
 
   while(!passed_limit && it->Valid()) {
     leveldb::Slice key_sl = it->key();
