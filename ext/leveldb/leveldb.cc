@@ -142,18 +142,37 @@ static VALUE db_size(VALUE self) {
   return INT2NUM(count);
 }
 
-static VALUE db_each(VALUE self) {
+static VALUE db_each(int argc, VALUE* argv, VALUE self) {
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
   leveldb::Iterator* it = db->db->NewIterator(leveldb::ReadOptions());
 
-  for (it->SeekToFirst(); it->Valid(); it->Next()) {
+  VALUE key_from, key_to, reversed;
+  rb_scan_args(argc, argv, "03", &key_from, &key_to, &reversed);
+
+  reversed = NIL_P(reversed) ? false : true;
+
+  if(NIL_P(key_from)) {
+    if(reversed) {
+      it->SeekToLast();
+    } else {
+      it->SeekToFirst();
+    }
+  } else {
+    it->Seek(RUBY_STRING_TO_SLICE(key_from));
+  }
+
+  while(it->Valid() && 
+          (NIL_P(key_to) ||
+           it->key().ToString() < RUBY_STRING_TO_SLICE(key_to).ToString())) {
     VALUE key = SLICE_TO_RUBY_STRING(it->key());
     VALUE value = SLICE_TO_RUBY_STRING(it->value());
     VALUE ary = rb_ary_new2(2);
     rb_ary_push(ary, key);
     rb_ary_push(ary, value);
     rb_yield(ary);
+
+    reversed ? it->Prev() : it->Next();
   }
 
   RAISE_ON_ERROR(it->status());
@@ -180,7 +199,7 @@ void Init_leveldb() {
   rb_define_method(c_db, "exists?", (VALUE (*)(...))db_exists, 1);
   rb_define_method(c_db, "close", (VALUE (*)(...))db_close, 0);
   rb_define_method(c_db, "size", (VALUE (*)(...))db_size, 0);
-  rb_define_method(c_db, "each", (VALUE (*)(...))db_each, 0);
+  rb_define_method(c_db, "each", (VALUE (*)(...))db_each, -1);
 
   c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
 }
