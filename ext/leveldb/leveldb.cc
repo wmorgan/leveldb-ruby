@@ -142,15 +142,10 @@ static VALUE db_size(VALUE self) {
   return INT2NUM(count);
 }
 
-static VALUE db_each(int argc, VALUE* argv, VALUE self) {
+static VALUE db_iterate(VALUE self, VALUE key_from, VALUE key_to, bool reversed) {
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
   leveldb::Iterator* it = db->db->NewIterator(leveldb::ReadOptions());
-
-  VALUE key_from, key_to, reversed;
-  rb_scan_args(argc, argv, "03", &key_from, &key_to, &reversed);
-
-  reversed = NIL_P(reversed) ? false : true;
 
   if(NIL_P(key_from)) {
     if(reversed) {
@@ -194,6 +189,20 @@ static VALUE db_each(int argc, VALUE* argv, VALUE self) {
   return self;
 }
 
+static VALUE db_each(int argc, VALUE* argv, VALUE self) {
+  VALUE key_from, key_to;
+  rb_scan_args(argc, argv, "02", &key_from, &key_to);
+
+  return db_iterate(self, key_from, key_to, false);
+}
+
+static VALUE db_reverse_each(int argc, VALUE* argv, VALUE self) {
+  VALUE key_from, key_to;
+  rb_scan_args(argc, argv, "02", &key_from, &key_to);
+
+  return db_iterate(self, key_from, key_to, true);
+}
+
 static VALUE db_init(VALUE self, VALUE v_pathname) {
   rb_iv_set(self, "@pathname", v_pathname);
   return self;
@@ -213,6 +222,7 @@ void Init_leveldb() {
   rb_define_method(c_db, "close", (VALUE (*)(...))db_close, 0);
   rb_define_method(c_db, "size", (VALUE (*)(...))db_size, 0);
   rb_define_method(c_db, "each", (VALUE (*)(...))db_each, -1);
+  rb_define_method(c_db, "reverse_each", (VALUE (*)(...))db_reverse_each, -1);
 
   c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
 }
