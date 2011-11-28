@@ -162,17 +162,30 @@ static VALUE db_each(int argc, VALUE* argv, VALUE self) {
     it->Seek(RUBY_STRING_TO_SLICE(key_from));
   }
 
-  while(it->Valid() && 
-          (NIL_P(key_to) ||
-           it->key().ToString() < RUBY_STRING_TO_SLICE(key_to).ToString())) {
-    VALUE key = SLICE_TO_RUBY_STRING(it->key());
+  bool passed_limit = false;
+  bool check_limit = NIL_P(key_to) ? false : true;
+  std::string key_to_str;
+
+  if(check_limit)
+    key_to_str = RUBY_STRING_TO_SLICE(key_to).ToString();
+
+  while(!passed_limit && it->Valid()) {
+    leveldb::Slice key_sl = it->key();
+    VALUE key = SLICE_TO_RUBY_STRING(key_sl);
     VALUE value = SLICE_TO_RUBY_STRING(it->value());
     VALUE ary = rb_ary_new2(2);
     rb_ary_push(ary, key);
     rb_ary_push(ary, value);
     rb_yield(ary);
 
-    reversed ? it->Prev() : it->Next();
+    if(check_limit &&
+         (reversed ?
+            (key_sl.ToString() <= key_to_str) :
+            (key_sl.ToString() >= key_to_str))) {
+      passed_limit = true;
+    } else {
+      reversed ? it->Prev() : it->Next();
+    }
   }
 
   RAISE_ON_ERROR(it->status());
