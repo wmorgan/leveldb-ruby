@@ -5,14 +5,9 @@ Dir.chdir "../../leveldb"
 system "make libleveldb.a" or abort
 Dir.chdir "../ext/leveldb"
 
-CONFIG['LDSHARED'] = "$(CXX) -shared"
+CONFIG['LDSHARED'] = CONFIG['LDSHARED'].sub('$(CC)', '$(CXX)').sub('gcc','g++')
 
 $CFLAGS << " -I../../leveldb/include"
 $LIBS << " -L../../leveldb -lleveldb"
-if RUBY_PLATFORM =~ /darwin/
-  $CFLAGS.sub! "-arch i386", ""
-  $LDFLAGS.sub! "-arch i386", ""
-  $LIBS << " -lruby" # whyyyyy
-end
 
 create_makefile "leveldb/leveldb"
