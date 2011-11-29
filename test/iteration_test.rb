@@ -30,7 +30,7 @@ class IterationTest < Test::Unit::TestCase
   end
 
   def test_each_with_key_from_to
-    expected = %w(b/1 b/2 b/3 c/1)
+    expected = %w(b/1 b/2 b/3)
     keys = []
     DB.each('b', 'b/4') do |key, value|
       keys << key
@@ -60,7 +60,7 @@ class IterationTest < Test::Unit::TestCase
   end
 
   def test_reverse_each_with_key_from_to
-    expected = %w(c/1 b/3 b/2 b/1 a/1)
+    expected = %w(c/1 b/3 b/2 b/1)
     keys = []
     DB.reverse_each('c', 'b') do |key, value|
       keys << key

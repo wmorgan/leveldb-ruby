@@ -167,19 +167,19 @@ static VALUE db_iterate(VALUE self, VALUE key_from, VALUE key_to, bool reversed)
 
   while(!passed_limit && it->Valid()) {
     leveldb::Slice key_sl = it->key();
-    VALUE key = SLICE_TO_RUBY_STRING(key_sl);
-    VALUE value = SLICE_TO_RUBY_STRING(it->value());
-    VALUE ary = rb_ary_new2(2);
-    rb_ary_push(ary, key);
-    rb_ary_push(ary, value);
-    rb_yield(ary);
 
     if(check_limit &&
-         (reversed ?
-            (key_sl.ToString() <= key_to_str) :
-            (key_sl.ToString() >= key_to_str))) {
+        (reversed ?
+          (key_sl.ToString() < key_to_str) :
+          (key_sl.ToString() > key_to_str))) {
       passed_limit = true;
     } else {
+      VALUE key = SLICE_TO_RUBY_STRING(key_sl);
+      VALUE value = SLICE_TO_RUBY_STRING(it->value());
+      VALUE ary = rb_ary_new2(2);
+      rb_ary_push(ary, key);
+      rb_ary_push(ary, value);
+      rb_yield(ary);
       reversed ? it->Prev() : it->Next();
     }
   }
