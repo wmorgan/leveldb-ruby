@@ -41,4 +41,10 @@ class DB
   def keys; map { |k, v| k } end
   def values; map { |k, v| v } end
 end
+
+class WriteBatch
+  class << self
+    private :new
+  end
+end
 end
