@@ -174,7 +174,9 @@ static VALUE db_size(VALUE self) {
 
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
-  leveldb::Iterator* it = db->db->NewIterator(leveldb::ReadOptions());
+  leveldb::ReadOptions readOptions;
+  readOptions.fill_cache = false;
+  leveldb::Iterator* it = db->db->NewIterator(readOptions);
 
   // apparently this is how we have to do it. slow and painful!
   for (it->SeekToFirst(); it->Valid(); it->Next()) count++;
