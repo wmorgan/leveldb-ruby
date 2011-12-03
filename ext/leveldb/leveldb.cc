@@ -62,37 +62,74 @@ static VALUE db_close(VALUE self) {
   return Qtrue;
 }
 
+static leveldb::ReadOptions db_readOptions(VALUE options) {
+  leveldb::ReadOptions readOptions;
+
+  if(!NIL_P(options)) {
+    Check_Type(options, T_HASH);
+    VALUE k_fill = ID2SYM(rb_intern("fill_cache"));
+    if(rb_hash_aref(options, k_fill) == Qfalse)
+      readOptions.fill_cache = false;
+    VALUE k_verify = ID2SYM(rb_intern("verify_checksums"));
+    if(rb_hash_aref(options, k_verify) == Qtrue)
+      readOptions.verify_checksums = true;
+  }
+
+  return readOptions;
+}
+
+static leveldb::WriteOptions db_writeOptions(VALUE options) {
+  leveldb::WriteOptions writeOptions;
+
+  if(!NIL_P(options)) {
+    Check_Type(options, T_HASH);
+    VALUE k_sync = ID2SYM(rb_intern("sync"));
+    if(rb_hash_aref(options, k_sync) == Qtrue)
+      writeOptions.sync = true;
+  }
+
+  return writeOptions;
+}
+
 #define RUBY_STRING_TO_SLICE(x) leveldb::Slice(RSTRING_PTR(x), RSTRING_LEN(x))
 #define SLICE_TO_RUBY_STRING(x) rb_str_new(x.data(), x.size())
 #define STRING_TO_RUBY_STRING(x) rb_str_new(x.data(), x.size())
-static VALUE db_get(VALUE self, VALUE v_key) {
+static VALUE db_get(int argc, VALUE* argv, VALUE self) {
+  VALUE v_key, v_options;
+  rb_scan_args(argc, argv, "11", &v_key, &v_options);
   Check_Type(v_key, T_STRING);
+  leveldb::ReadOptions readOptions = db_readOptions(v_options);
 
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
 
   leveldb::Slice key = RUBY_STRING_TO_SLICE(v_key);
   std::string value;
-  leveldb::Status status = db->db->Get(leveldb::ReadOptions(), key, &value);
+  leveldb::Status status = db->db->Get(readOptions, key, &value);
   if(status.IsNotFound()) return Qnil;
 
   RAISE_ON_ERROR(status);
   return STRING_TO_RUBY_STRING(value);
 }
 
-static VALUE db_delete(VALUE self, VALUE v_key) {
+static VALUE db_delete(int argc, VALUE* argv, VALUE self) {
+  VALUE v_key, v_options;
+  rb_scan_args(argc, argv, "11", &v_key, &v_options);
   Check_Type(v_key, T_STRING);
+  leveldb::WriteOptions writeOptions = db_writeOptions(v_options);
+  leveldb::ReadOptions readOptions;
+  readOptions.fill_cache = false;
 
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
 
   leveldb::Slice key = RUBY_STRING_TO_SLICE(v_key);
   std::string value;
-  leveldb::Status status = db->db->Get(leveldb::ReadOptions(), key, &value);
+  leveldb::Status status = db->db->Get(readOptions, key, &value);
 
   if(status.IsNotFound()) return Qnil;
 
-  status = db->db->Delete(leveldb::WriteOptions(), key);
+  status = db->db->Delete(writeOptions, key);
   RAISE_ON_ERROR(status);
 
   return STRING_TO_RUBY_STRING(value);
@@ -114,19 +151,11 @@ static VALUE db_exists(VALUE self, VALUE v_key) {
 
 static VALUE db_put(int argc, VALUE* argv, VALUE self) {
   VALUE v_key, v_value, v_options;
-  leveldb::WriteOptions writeOptions;
 
   rb_scan_args(argc, argv, "21", &v_key, &v_value, &v_options);
   Check_Type(v_key, T_STRING);
   Check_Type(v_value, T_STRING);
-
-  if(!NIL_P(v_options)) {
-    Check_Type(v_options, T_HASH);
-    VALUE k_sync = ID2SYM(rb_intern("sync"));
-    if(rb_hash_aref(v_options, k_sync) == Qtrue) {
-      writeOptions.sync = true;
-    }
-  }
+  leveldb::WriteOptions writeOptions = db_writeOptions(v_options);
 
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
@@ -230,8 +259,8 @@ void Init_leveldb() {
   c_db = rb_define_class_under(m_leveldb, "DB", rb_cObject);
   rb_define_singleton_method(c_db, "make", (VALUE (*)(...))db_make, 3);
   rb_define_method(c_db, "initialize", (VALUE (*)(...))db_init, 1);
-  rb_define_method(c_db, "get", (VALUE (*)(...))db_get, 1);
-  rb_define_method(c_db, "delete", (VALUE (*)(...))db_delete, 1);
+  rb_define_method(c_db, "get", (VALUE (*)(...))db_get, -1);
+  rb_define_method(c_db, "delete", (VALUE (*)(...))db_delete, -1);
   rb_define_method(c_db, "put", (VALUE (*)(...))db_put, -1);
   rb_define_method(c_db, "exists?", (VALUE (*)(...))db_exists, 1);
   rb_define_method(c_db, "close", (VALUE (*)(...))db_close, 0);
