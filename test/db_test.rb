@@ -32,5 +32,18 @@ class DBTest < Test::Unit::TestCase
     assert DB.delete("test:async")
     assert DB.delete("test:sync", :sync => true)
   end
+
+  def test_batch
+    DB.put 'a', '1'
+    DB.put 'b', '1'
+
+    DB.batch do |b|
+      b.put 'a', 'batch'
+      b.delete 'b'
+    end
+
+    assert_equal 'batch', DB.get('a')
+    assert_nil DB.get('b')
+  end
 end
 
