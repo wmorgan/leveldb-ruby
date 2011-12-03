@@ -112,16 +112,28 @@ static VALUE db_exists(VALUE self, VALUE v_key) {
   return Qtrue;
 }
 
-static VALUE db_put(VALUE self, VALUE v_key, VALUE v_value) {
+static VALUE db_put(int argc, VALUE* argv, VALUE self) {
+  VALUE v_key, v_value, v_options;
+  leveldb::WriteOptions writeOptions;
+
+  rb_scan_args(argc, argv, "21", &v_key, &v_value, &v_options);
   Check_Type(v_key, T_STRING);
   Check_Type(v_value, T_STRING);
+
+  if(!NIL_P(v_options)) {
+    Check_Type(v_options, T_HASH);
+    VALUE k_sync = ID2SYM(rb_intern("sync"));
+    if(rb_hash_aref(v_options, k_sync) == Qtrue) {
+      writeOptions.sync = true;
+    }
+  }
 
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
 
   leveldb::Slice key = RUBY_STRING_TO_SLICE(v_key);
   leveldb::Slice value = RUBY_STRING_TO_SLICE(v_value);
-  leveldb::Status status = db->db->Put(leveldb::WriteOptions(), key, value);
+  leveldb::Status status = db->db->Put(writeOptions, key, value);
 
   RAISE_ON_ERROR(status);
 
@@ -220,7 +232,7 @@ void Init_leveldb() {
   rb_define_method(c_db, "initialize", (VALUE (*)(...))db_init, 1);
   rb_define_method(c_db, "get", (VALUE (*)(...))db_get, 1);
   rb_define_method(c_db, "delete", (VALUE (*)(...))db_delete, 1);
-  rb_define_method(c_db, "put", (VALUE (*)(...))db_put, 2);
+  rb_define_method(c_db, "put", (VALUE (*)(...))db_put, -1);
   rb_define_method(c_db, "exists?", (VALUE (*)(...))db_exists, 1);
   rb_define_method(c_db, "close", (VALUE (*)(...))db_close, 0);
   rb_define_method(c_db, "size", (VALUE (*)(...))db_size, 0);
