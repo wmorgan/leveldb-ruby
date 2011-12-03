@@ -307,7 +307,7 @@ static VALUE db_batch(VALUE self) {
   Data_Get_Struct(self, bound_db, db);
 
   leveldb::Status status = db->db->Write(leveldb::WriteOptions(), &batch->batch);
-  batch_free(batch);
+
   if(status.ok()) {
     return Qtrue;
   } else {
