@@ -8,6 +8,10 @@ static VALUE m_leveldb;
 static VALUE c_db;
 static VALUE c_batch;
 static VALUE c_error;
+static VALUE k_fill;
+static VALUE k_verify;
+static VALUE k_sync;
+static ID to_s;
 
 // support 1.9 and 1.8
 #ifndef RSTRING_PTR
@@ -69,10 +73,8 @@ static leveldb::ReadOptions db_readOptions(VALUE options) {
 
   if(!NIL_P(options)) {
     Check_Type(options, T_HASH);
-    VALUE k_fill = ID2SYM(rb_intern("fill_cache"));
     if(rb_hash_aref(options, k_fill) == Qfalse)
       readOptions.fill_cache = false;
-    VALUE k_verify = ID2SYM(rb_intern("verify_checksums"));
     if(rb_hash_aref(options, k_verify) == Qtrue)
       readOptions.verify_checksums = true;
   }
@@ -85,7 +87,6 @@ static leveldb::WriteOptions db_writeOptions(VALUE options) {
 
   if(!NIL_P(options)) {
     Check_Type(options, T_HASH);
-    VALUE k_sync = ID2SYM(rb_intern("sync"));
     if(rb_hash_aref(options, k_sync) == Qtrue)
       writeOptions.sync = true;
   }
@@ -193,7 +194,6 @@ static VALUE db_iterate(VALUE self, VALUE key_from, VALUE key_to, bool reversed)
   leveldb::ReadOptions readOptions;
   readOptions.fill_cache = false;
   leveldb::Iterator* it = db->db->NewIterator(readOptions);
-  ID to_s = rb_intern("to_s");
 
   if(RTEST(key_from)) {
     it->Seek(RUBY_STRING_TO_SLICE(rb_funcall(key_from, to_s, 0)));
@@ -295,10 +295,8 @@ static VALUE batch_delete(VALUE self, VALUE v_key) {
 }
 
 static VALUE db_batch(VALUE self) {
-  VALUE m_leveldb, c_batch, o_batch;
-  m_leveldb = rb_const_get(rb_cObject, rb_intern("LevelDB"));
-  c_batch = rb_const_get(m_leveldb, rb_intern("WriteBatch"));
-  o_batch = batch_make(c_batch);
+  VALUE o_batch = batch_make(c_batch);
+
   rb_yield(o_batch);
 
   bound_batch* batch;
@@ -307,17 +305,17 @@ static VALUE db_batch(VALUE self) {
   Data_Get_Struct(self, bound_db, db);
 
   leveldb::Status status = db->db->Write(leveldb::WriteOptions(), &batch->batch);
-
-  if(status.ok()) {
-    return Qtrue;
-  } else {
-    RAISE_ON_ERROR(status);
-    return Qfalse;
-  }
+  RAISE_ON_ERROR(status);
+  return Qtrue;
 }
 
 extern "C" {
 void Init_leveldb() {
+  k_fill = ID2SYM(rb_intern("fill_cache"));
+  k_verify = ID2SYM(rb_intern("verify_checksums"));
+  k_sync = ID2SYM(rb_intern("sync"));
+  to_s = rb_intern("to_s");
+
   m_leveldb = rb_define_module("LevelDB");
 
   c_db = rb_define_class_under(m_leveldb, "DB", rb_cObject);
