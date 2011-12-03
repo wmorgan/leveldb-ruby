@@ -2,9 +2,11 @@
 
 #include "leveldb/db.h"
 #include "leveldb/slice.h"
+#include "leveldb/write_batch.h"
 
 static VALUE m_leveldb;
 static VALUE c_db;
+static VALUE c_batch;
 static VALUE c_error;
 
 // support 1.9 and 1.8
@@ -254,6 +256,66 @@ static VALUE db_init(VALUE self, VALUE v_pathname) {
   return self;
 }
 
+typedef struct bound_batch {
+  leveldb::WriteBatch batch;
+} bound_batch;
+
+static void batch_free(bound_batch* batch) {
+  delete batch;
+}
+
+static VALUE batch_make(VALUE klass) {
+  bound_batch* batch = new bound_batch;
+  batch->batch = leveldb::WriteBatch();
+
+  VALUE o_batch = Data_Wrap_Struct(klass, NULL, batch_free, batch);
+  VALUE argv[0];
+  rb_obj_call_init(o_batch, 0, argv);
+
+  return o_batch;
+}
+
+static VALUE batch_put(VALUE self, VALUE v_key, VALUE v_value) {
+  Check_Type(v_key, T_STRING);
+  Check_Type(v_value, T_STRING);
+
+  bound_batch* batch;
+  Data_Get_Struct(self, bound_batch, batch);
+  batch->batch.Put(RUBY_STRING_TO_SLICE(v_key), RUBY_STRING_TO_SLICE(v_value));
+
+  return v_value;
+}
+
+static VALUE batch_delete(VALUE self, VALUE v_key) {
+  Check_Type(v_key, T_STRING);
+  bound_batch* batch;
+  Data_Get_Struct(self, bound_batch, batch);
+  batch->batch.Delete(RUBY_STRING_TO_SLICE(v_key));
+  return Qtrue;
+}
+
+static VALUE db_batch(VALUE self) {
+  VALUE m_leveldb, c_batch, o_batch;
+  m_leveldb = rb_const_get(rb_cObject, rb_intern("LevelDB"));
+  c_batch = rb_const_get(m_leveldb, rb_intern("WriteBatch"));
+  o_batch = batch_make(c_batch);
+  rb_yield(o_batch);
+
+  bound_batch* batch;
+  bound_db* db;
+  Data_Get_Struct(o_batch, bound_batch, batch);
+  Data_Get_Struct(self, bound_db, db);
+
+  leveldb::Status status = db->db->Write(leveldb::WriteOptions(), &batch->batch);
+  batch_free(batch);
+  if(status.ok()) {
+    return Qtrue;
+  } else {
+    RAISE_ON_ERROR(status);
+    return Qfalse;
+  }
+}
+
 extern "C" {
 void Init_leveldb() {
   m_leveldb = rb_define_module("LevelDB");
@@ -269,6 +331,12 @@ void Init_leveldb() {
   rb_define_method(c_db, "size", (VALUE (*)(...))db_size, 0);
   rb_define_method(c_db, "each", (VALUE (*)(...))db_each, -1);
   rb_define_method(c_db, "reverse_each", (VALUE (*)(...))db_reverse_each, -1);
+  rb_define_method(c_db, "batch", (VALUE (*)(...))db_batch, 0);
+
+  c_batch = rb_define_class_under(m_leveldb, "WriteBatch", rb_cObject);
+  rb_define_singleton_method(c_batch, "make", (VALUE (*)(...))batch_make, 0);
+  rb_define_method(c_batch, "put", (VALUE (*)(...))batch_put, 2);
+  rb_define_method(c_batch, "delete", (VALUE (*)(...))batch_delete, 1);
 
   c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
 }
