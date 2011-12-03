@@ -145,7 +145,9 @@ static VALUE db_size(VALUE self) {
 static VALUE db_iterate(VALUE self, VALUE key_from, VALUE key_to, bool reversed) {
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
-  leveldb::Iterator* it = db->db->NewIterator(leveldb::ReadOptions());
+  leveldb::ReadOptions readOptions;
+  readOptions.fill_cache = false;
+  leveldb::Iterator* it = db->db->NewIterator(readOptions);
   ID to_s = rb_intern("to_s");
 
   if(RTEST(key_from)) {
