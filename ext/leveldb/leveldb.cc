@@ -294,7 +294,7 @@ static VALUE batch_delete(VALUE self, VALUE v_key) {
   return Qtrue;
 }
 
-static VALUE db_batch(VALUE self) {
+static VALUE db_batch(int argc, VALUE* argv, VALUE self) {
   VALUE o_batch = batch_make(c_batch);
 
   rb_yield(o_batch);
@@ -304,7 +304,11 @@ static VALUE db_batch(VALUE self) {
   Data_Get_Struct(o_batch, bound_batch, batch);
   Data_Get_Struct(self, bound_db, db);
 
-  leveldb::Status status = db->db->Write(leveldb::WriteOptions(), &batch->batch);
+  VALUE v_options;
+  rb_scan_args(argc, argv, "01", &v_options);
+  leveldb::WriteOptions writeOptions = db_writeOptions(v_options);
+
+  leveldb::Status status = db->db->Write(writeOptions, &batch->batch);
   RAISE_ON_ERROR(status);
   return Qtrue;
 }
@@ -329,7 +333,7 @@ void Init_leveldb() {
   rb_define_method(c_db, "size", (VALUE (*)(...))db_size, 0);
   rb_define_method(c_db, "each", (VALUE (*)(...))db_each, -1);
   rb_define_method(c_db, "reverse_each", (VALUE (*)(...))db_reverse_each, -1);
-  rb_define_method(c_db, "batch", (VALUE (*)(...))db_batch, 0);
+  rb_define_method(c_db, "batch", (VALUE (*)(...))db_batch, -1);
 
   c_batch = rb_define_class_under(m_leveldb, "WriteBatch", rb_cObject);
   rb_define_singleton_method(c_batch, "make", (VALUE (*)(...))batch_make, 0);

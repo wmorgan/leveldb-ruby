@@ -44,6 +44,14 @@ class DBTest < Test::Unit::TestCase
 
     assert_equal 'batch', DB.get('a')
     assert_nil DB.get('b')
+
+    DB.batch :sync => true do |b|
+      b.put 'b', 'batch'
+      b.delete 'a'
+    end
+
+    assert_equal 'batch', DB.get('b')
+    assert_nil DB.get('a')
   end
 end
 
