@@ -7,3 +7,4 @@ ext/leveldb/libleveldb.a
 leveldb/libleveldb.a
 leveldb/leveldb.gyp
 pkg
+test/*.db
