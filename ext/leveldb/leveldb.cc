@@ -12,6 +12,7 @@ static VALUE k_fill;
 static VALUE k_verify;
 static VALUE k_sync;
 static ID to_s;
+static leveldb::ReadOptions uncached_read_options;
 
 // support 1.9 and 1.8
 #ifndef RSTRING_PTR
@@ -120,15 +121,13 @@ static VALUE db_delete(int argc, VALUE* argv, VALUE self) {
   rb_scan_args(argc, argv, "11", &v_key, &v_options);
   Check_Type(v_key, T_STRING);
   leveldb::WriteOptions writeOptions = parse_write_options(v_options);
-  leveldb::ReadOptions readOptions;
-  readOptions.fill_cache = false;
 
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
 
   leveldb::Slice key = RUBY_STRING_TO_SLICE(v_key);
   std::string value;
-  leveldb::Status status = db->db->Get(readOptions, key, &value);
+  leveldb::Status status = db->db->Get(uncached_read_options, key, &value);
 
   if(status.IsNotFound()) return Qnil;
 
@@ -177,9 +176,7 @@ static VALUE db_size(VALUE self) {
 
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
-  leveldb::ReadOptions readOptions;
-  readOptions.fill_cache = false;
-  leveldb::Iterator* it = db->db->NewIterator(readOptions);
+  leveldb::Iterator* it = db->db->NewIterator(uncached_read_options);
 
   // apparently this is how we have to do it. slow and painful!
   for (it->SeekToFirst(); it->Valid(); it->Next()) count++;
@@ -191,9 +188,7 @@ static VALUE db_size(VALUE self) {
 static VALUE db_iterate(VALUE self, VALUE key_from, VALUE key_to, bool reversed) {
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
-  leveldb::ReadOptions readOptions;
-  readOptions.fill_cache = false;
-  leveldb::Iterator* it = db->db->NewIterator(readOptions);
+  leveldb::Iterator* it = db->db->NewIterator(uncached_read_options);
 
   if(RTEST(key_from)) {
     it->Seek(RUBY_STRING_TO_SLICE(rb_funcall(key_from, to_s, 0)));
@@ -319,6 +314,8 @@ void Init_leveldb() {
   k_verify = ID2SYM(rb_intern("verify_checksums"));
   k_sync = ID2SYM(rb_intern("sync"));
   to_s = rb_intern("to_s");
+  uncached_read_options = leveldb::ReadOptions();
+  uncached_read_options.fill_cache = false;
 
   m_leveldb = rb_define_module("LevelDB");
 
