@@ -68,7 +68,7 @@ static VALUE db_close(VALUE self) {
   return Qtrue;
 }
 
-static leveldb::ReadOptions db_readOptions(VALUE options) {
+static leveldb::ReadOptions parse_read_options(VALUE options) {
   leveldb::ReadOptions readOptions;
 
   if(!NIL_P(options)) {
@@ -82,7 +82,7 @@ static leveldb::ReadOptions db_readOptions(VALUE options) {
   return readOptions;
 }
 
-static leveldb::WriteOptions db_writeOptions(VALUE options) {
+static leveldb::WriteOptions parse_write_options(VALUE options) {
   leveldb::WriteOptions writeOptions;
 
   if(!NIL_P(options)) {
@@ -101,7 +101,7 @@ static VALUE db_get(int argc, VALUE* argv, VALUE self) {
   VALUE v_key, v_options;
   rb_scan_args(argc, argv, "11", &v_key, &v_options);
   Check_Type(v_key, T_STRING);
-  leveldb::ReadOptions readOptions = db_readOptions(v_options);
+  leveldb::ReadOptions readOptions = parse_read_options(v_options);
 
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
@@ -119,7 +119,7 @@ static VALUE db_delete(int argc, VALUE* argv, VALUE self) {
   VALUE v_key, v_options;
   rb_scan_args(argc, argv, "11", &v_key, &v_options);
   Check_Type(v_key, T_STRING);
-  leveldb::WriteOptions writeOptions = db_writeOptions(v_options);
+  leveldb::WriteOptions writeOptions = parse_write_options(v_options);
   leveldb::ReadOptions readOptions;
   readOptions.fill_cache = false;
 
@@ -158,7 +158,7 @@ static VALUE db_put(int argc, VALUE* argv, VALUE self) {
   rb_scan_args(argc, argv, "21", &v_key, &v_value, &v_options);
   Check_Type(v_key, T_STRING);
   Check_Type(v_value, T_STRING);
-  leveldb::WriteOptions writeOptions = db_writeOptions(v_options);
+  leveldb::WriteOptions writeOptions = parse_write_options(v_options);
 
   bound_db* db;
   Data_Get_Struct(self, bound_db, db);
@@ -306,7 +306,7 @@ static VALUE db_batch(int argc, VALUE* argv, VALUE self) {
 
   VALUE v_options;
   rb_scan_args(argc, argv, "01", &v_options);
-  leveldb::WriteOptions writeOptions = db_writeOptions(v_options);
+  leveldb::WriteOptions writeOptions = parse_write_options(v_options);
 
   leveldb::Status status = db->db->Write(writeOptions, &batch->batch);
   RAISE_ON_ERROR(status);
