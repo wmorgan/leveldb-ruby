@@ -5,7 +5,7 @@ require 'find'
 spec = Gem::Specification.new do |s|
  s.name = "leveldb-ruby"
  s.version = "0.10"
- s.date = Time.now.to_s
+ s.date = Time.now
  s.email = "wmorgan-leveldb-ruby-gemspec@masanjin.net"
  s.authors = ["William Morgan"]
  s.summary = "a Ruby binding to LevelDB"
