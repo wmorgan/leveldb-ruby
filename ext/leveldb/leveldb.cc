@@ -6,11 +6,17 @@
 
 static VALUE m_leveldb;
 static VALUE c_db;
+static VALUE c_iter;
 static VALUE c_batch;
 static VALUE c_error;
 static VALUE k_fill;
 static VALUE k_verify;
 static VALUE k_sync;
+static VALUE k_from;
+static VALUE k_to;
+static VALUE k_reversed;
+static VALUE k_class;
+static VALUE k_name;
 static ID to_s;
 static leveldb::ReadOptions uncached_read_options;
 
@@ -251,6 +257,30 @@ static VALUE db_init(VALUE self, VALUE v_pathname) {
   return self;
 }
 
+static VALUE iter_init(int argc, VALUE* argv, VALUE self) {
+  VALUE db, options;
+  rb_scan_args(argc, argv, "12", &db, &options);
+
+  if(c_db != rb_funcall(db, k_class, 0)) {
+    rb_raise(rb_eArgError, "db Must be a LevelDB::DB");
+  }
+
+  rb_iv_set(self, "@db", db);
+
+  if(!NIL_P(options)) {
+    Check_Type(options, T_HASH);
+    rb_iv_set(self, "@from", rb_hash_aref(options, k_from));
+    rb_iv_set(self, "@to", rb_hash_aref(options, k_to));
+    if(NIL_P(rb_hash_aref(options, k_reversed))) {
+      rb_iv_set(self, "@reversed", false);
+    } else {
+      rb_iv_set(self, "@reversed", true);
+    }
+  }
+
+  return self;
+}
+
 typedef struct bound_batch {
   leveldb::WriteBatch batch;
 } bound_batch;
@@ -313,6 +343,11 @@ void Init_leveldb() {
   k_fill = ID2SYM(rb_intern("fill_cache"));
   k_verify = ID2SYM(rb_intern("verify_checksums"));
   k_sync = ID2SYM(rb_intern("sync"));
+  k_from = ID2SYM(rb_intern("from"));
+  k_to = ID2SYM(rb_intern("to"));
+  k_reversed = ID2SYM(rb_intern("reversed"));
+  k_class = rb_intern("class");
+  k_name = rb_intern("name");
   to_s = rb_intern("to_s");
   uncached_read_options = leveldb::ReadOptions();
   uncached_read_options.fill_cache = false;
@@ -331,6 +366,9 @@ void Init_leveldb() {
   rb_define_method(c_db, "each", (VALUE (*)(...))db_each, -1);
   rb_define_method(c_db, "reverse_each", (VALUE (*)(...))db_reverse_each, -1);
   rb_define_method(c_db, "batch", (VALUE (*)(...))db_batch, -1);
+
+  c_iter = rb_define_class_under(m_leveldb, "Iterator", rb_cObject);
+  rb_define_method(c_iter, "initialize", (VALUE (*)(...))iter_init, -1);
 
   c_batch = rb_define_class_under(m_leveldb, "WriteBatch", rb_cObject);
   rb_define_singleton_method(c_batch, "make", (VALUE (*)(...))batch_make, 0);

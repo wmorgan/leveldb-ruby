@@ -29,8 +29,9 @@ module LevelDB
       def path_string pathname
         File.respond_to?(:path) ? File.path(pathname) : pathname.to_str
       end
-
     end
+
+    attr_reader :pathname
 
     alias :includes? :exists?
     alias :contains? :exists?
@@ -40,6 +41,22 @@ module LevelDB
 
     def keys; map { |k, v| k } end
     def values; map { |k, v| v } end
+
+    def inspect
+      %(<#{self.class} #{@pathname.inspect}>)
+    end
+  end
+
+  class Iterator
+    attr_reader :db, :from, :to
+
+    def reversed?
+      !!@reversed
+    end
+
+    def inspect
+      %(<#{self.class} #{@db.inspect} @from=#{@from.inspect} @to=#{@to.inspect}#{' (reversed)' if @reversed}>)
+    end
   end
 
   class WriteBatch

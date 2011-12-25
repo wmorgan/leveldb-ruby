@@ -68,5 +68,33 @@ class IterationTest < Test::Unit::TestCase
 
     assert_equal expected, keys
   end
+
+  def test_iterator_init_with_default_options
+    iter = LevelDB::Iterator.new DB
+    assert_equal DB, iter.db
+    assert_nil iter.from
+    assert_nil iter.to
+    assert_equal false, iter.reversed?
+  end
+
+  def test_iterator_init_with_options
+    iter = LevelDB::Iterator.new DB, :from => 'abc', :to => 'def', :reversed => true
+    assert_equal DB,iter.db
+    assert_equal 'abc', iter.from
+    assert_equal 'def', iter.to
+    assert_equal true, iter.reversed?
+  end
+
+  def test_iterator_init_with_no_args
+    assert_raise ArgumentError do
+      LevelDB::Iterator.new
+    end
+  end
+
+  def test_iterator_requires_db
+    assert_raise ArgumentError do
+      LevelDB::Iterator.new 'db'
+    end
+  end
 end
 
