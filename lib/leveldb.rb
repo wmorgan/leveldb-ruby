@@ -50,6 +50,10 @@ module LevelDB
   class Iterator
     attr_reader :db, :from, :to
 
+    def self.new(db, options = nil)
+      make(db, options || {})
+    end
+
     def reversed?
       !!@reversed
     end

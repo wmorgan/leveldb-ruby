@@ -257,20 +257,61 @@ static VALUE db_init(VALUE self, VALUE v_pathname) {
   return self;
 }
 
-static VALUE iter_init(int argc, VALUE* argv, VALUE self) {
-  VALUE db, options;
-  rb_scan_args(argc, argv, "12", &db, &options);
+typedef struct current_iteration {
+  leveldb::Iterator* iterator;
+  bool passed_limit;
+  bool check_limit;
+  std::string key_to_str;
+} current_iteration;
 
+static void current_iteration_free(current_iteration* iter) {
+  delete iter;
+}
+
+static VALUE iter_make(VALUE klass, VALUE db, VALUE options) {
+  if(c_db != rb_funcall(db, k_class, 0)) {
+    rb_raise(rb_eArgError, "db Must be a LevelDB::DB");
+  }
+
+  bound_db* b_db;
+  Data_Get_Struct(db, bound_db, b_db);
+
+  current_iteration* iter = new current_iteration;
+  iter->passed_limit = false;
+  iter->check_limit = false;
+  iter->iterator = b_db->db->NewIterator(uncached_read_options);
+
+  VALUE o_iter = Data_Wrap_Struct(klass, NULL, current_iteration_free, iter);
+
+  VALUE argv[2];
+  argv[0] = db;
+  argv[1] = options;
+  rb_obj_call_init(o_iter, 2, argv);
+
+  return o_iter;
+}
+
+static VALUE iter_init(VALUE self, VALUE db, VALUE options) {
   if(c_db != rb_funcall(db, k_class, 0)) {
     rb_raise(rb_eArgError, "db Must be a LevelDB::DB");
   }
 
   rb_iv_set(self, "@db", db);
+  current_iteration* iter;
+  Data_Get_Struct(self, current_iteration, iter);
 
   if(!NIL_P(options)) {
     Check_Type(options, T_HASH);
-    rb_iv_set(self, "@from", rb_hash_aref(options, k_from));
-    rb_iv_set(self, "@to", rb_hash_aref(options, k_to));
+    VALUE key_from = rb_hash_aref(options, k_from);
+    VALUE key_to = rb_hash_aref(options, k_to);
+
+    if(RTEST(key_to)) {
+      iter->check_limit = true;
+      iter->key_to_str = RUBY_STRING_TO_SLICE(rb_funcall(key_to, to_s, 0)).ToString();
+    }
+
+    rb_iv_set(self, "@from", key_from);
+    rb_iv_set(self, "@to", key_to);
     if(NIL_P(rb_hash_aref(options, k_reversed))) {
       rb_iv_set(self, "@reversed", false);
     } else {
@@ -368,7 +409,8 @@ void Init_leveldb() {
   rb_define_method(c_db, "batch", (VALUE (*)(...))db_batch, -1);
 
   c_iter = rb_define_class_under(m_leveldb, "Iterator", rb_cObject);
-  rb_define_method(c_iter, "initialize", (VALUE (*)(...))iter_init, -1);
+  rb_define_singleton_method(c_iter, "make", (VALUE (*)(...))iter_make, 2);
+  rb_define_method(c_iter, "initialize", (VALUE (*)(...))iter_init, 2);
 
   c_batch = rb_define_class_under(m_leveldb, "WriteBatch", rb_cObject);
   rb_define_singleton_method(c_batch, "make", (VALUE (*)(...))batch_make, 0);
