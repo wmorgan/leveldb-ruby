@@ -39,6 +39,14 @@ module LevelDB
     alias :[] :get
     alias :[]= :put
 
+    def each(*args)
+      iterator = Iterator.new(self, *args)
+      if block_given?
+        iterator.each &Proc.new
+      end
+      iterator
+    end
+
     def keys; map { |k, v| k } end
     def values; map { |k, v| v } end
 
@@ -48,6 +56,8 @@ module LevelDB
   end
 
   class Iterator
+    include Enumerable
+
     attr_reader :db, :from, :to
 
     def self.new(db, options = nil)

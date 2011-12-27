@@ -191,67 +191,6 @@ static VALUE db_size(VALUE self) {
   return INT2NUM(count);
 }
 
-static VALUE db_iterate(VALUE self, VALUE key_from, VALUE key_to, bool reversed) {
-  bound_db* db;
-  Data_Get_Struct(self, bound_db, db);
-  leveldb::Iterator* it = db->db->NewIterator(uncached_read_options);
-
-  if(RTEST(key_from)) {
-    it->Seek(RUBY_STRING_TO_SLICE(rb_funcall(key_from, to_s, 0)));
-  } else {
-    if(reversed) {
-      it->SeekToLast();
-    } else {
-      it->SeekToFirst();
-    }
-  }
-
-  bool passed_limit = false;
-  bool check_limit = RTEST(key_to);
-  std::string key_to_str;
-
-  if(check_limit)
-    key_to_str = RUBY_STRING_TO_SLICE(rb_funcall(key_to, to_s, 0)).ToString();
-
-  while(!passed_limit && it->Valid()) {
-    leveldb::Slice key_sl = it->key();
-
-    if(check_limit &&
-        (reversed ?
-          (key_sl.ToString() < key_to_str) :
-          (key_sl.ToString() > key_to_str))) {
-      passed_limit = true;
-    } else {
-      VALUE key = SLICE_TO_RUBY_STRING(key_sl);
-      VALUE value = SLICE_TO_RUBY_STRING(it->value());
-      VALUE ary = rb_ary_new2(2);
-      rb_ary_push(ary, key);
-      rb_ary_push(ary, value);
-      rb_yield(ary);
-      reversed ? it->Prev() : it->Next();
-    }
-  }
-
-  RAISE_ON_ERROR(it->status());
-  delete it;
-
-  return self;
-}
-
-static VALUE db_each(int argc, VALUE* argv, VALUE self) {
-  VALUE key_from, key_to;
-  rb_scan_args(argc, argv, "02", &key_from, &key_to);
-
-  return db_iterate(self, key_from, key_to, false);
-}
-
-static VALUE db_reverse_each(int argc, VALUE* argv, VALUE self) {
-  VALUE key_from, key_to;
-  rb_scan_args(argc, argv, "02", &key_from, &key_to);
-
-  return db_iterate(self, key_from, key_to, true);
-}
-
 static VALUE db_init(VALUE self, VALUE v_pathname) {
   rb_iv_set(self, "@pathname", v_pathname);
   return self;
@@ -523,8 +462,6 @@ void Init_leveldb() {
   rb_define_method(c_db, "exists?", (VALUE (*)(...))db_exists, 1);
   rb_define_method(c_db, "close", (VALUE (*)(...))db_close, 0);
   rb_define_method(c_db, "size", (VALUE (*)(...))db_size, 0);
-  rb_define_method(c_db, "each", (VALUE (*)(...))db_each, -1);
-  rb_define_method(c_db, "reverse_each", (VALUE (*)(...))db_reverse_each, -1);
   rb_define_method(c_db, "batch", (VALUE (*)(...))db_batch, -1);
 
   c_iter = rb_define_class_under(m_leveldb, "Iterator", rb_cObject);

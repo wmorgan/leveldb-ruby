@@ -22,7 +22,7 @@ class IterationTest < Test::Unit::TestCase
   def test_each_with_key_from
     expected = %w(b/1 b/2 b/3 c/1)
     keys = []
-    DB.each('b') do |key, value|
+    DB.each(:from => 'b') do |key, value|
       keys << key
     end
 
@@ -32,7 +32,7 @@ class IterationTest < Test::Unit::TestCase
   def test_each_with_key_from_to
     expected = %w(b/1 b/2 b/3)
     keys = []
-    DB.each('b', 'b/4') do |key, value|
+    DB.each(:from => 'b', :to => 'b/4') do |key, value|
       keys << key
     end
 
@@ -42,7 +42,7 @@ class IterationTest < Test::Unit::TestCase
   def test_reverse_each
     expected = %w(c/1 b/3 b/2 b/1 a/1)
     keys = []
-    DB.reverse_each do |key, value|
+    DB.each(:reversed => true) do |key, value|
       keys << key
     end
 
@@ -52,7 +52,7 @@ class IterationTest < Test::Unit::TestCase
   def test_reverse_each_with_key_from
     expected = %w(b/1 a/1)
     keys = []
-    DB.reverse_each('b') do |key, value|
+    DB.each(:from => 'b', :reversed => true) do |key, value|
       keys << key
     end
 
@@ -62,7 +62,7 @@ class IterationTest < Test::Unit::TestCase
   def test_reverse_each_with_key_from_to
     expected = %w(c/1 b/3 b/2 b/1)
     keys = []
-    DB.reverse_each('c', 'b') do |key, value|
+    DB.each(:from => 'c', :to => 'b', :reversed => true) do |key, value|
       keys << key
     end
 
