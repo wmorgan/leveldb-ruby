@@ -27,6 +27,11 @@ static leveldb::ReadOptions uncached_read_options;
   }  \
 } while(0)
 
+bool hash_val_test(VALUE h, VALUE key) {
+  VALUE v = rb_hash_aref(h, key);
+  return RTEST(v);
+}
+
 typedef struct bound_db {
   leveldb::DB* db;
 } bound_db;
@@ -39,20 +44,28 @@ static void db_free(bound_db* db) {
   delete db;
 }
 
-static VALUE db_make(VALUE klass, VALUE v_pathname, VALUE v_create_if_necessary, VALUE v_break_if_exists) {
-  Check_Type(v_pathname, T_STRING);
+static VALUE db_make(VALUE klass, VALUE params) {
+  Check_Type(params, T_HASH);
+
+  VALUE path = rb_hash_aref(params, ID2SYM(rb_intern("path")));
+  Check_Type(path, T_STRING);
 
   bound_db* db = new bound_db;
-  std::string pathname = std::string((char*)RSTRING_PTR(v_pathname));
+  std::string pathname = std::string((char*)RSTRING_PTR(path));
 
   leveldb::Options options;
-  if(RTEST(v_create_if_necessary)) options.create_if_missing = true;
-  if(RTEST(v_break_if_exists)) options.error_if_exists = true;
+  if(hash_val_test(params, ID2SYM(rb_intern("create_if_missing")))) {
+    options.create_if_missing = true;
+  }
+
+  if(hash_val_test(params, ID2SYM(rb_intern("error_if_exists")))) {
+    options.error_if_exists = true;
+  }
   leveldb::Status status = leveldb::DB::Open(options, pathname, &db->db);
   RAISE_ON_ERROR(status);
 
   VALUE o_db = Data_Wrap_Struct(klass, NULL, db_free, db);
-  VALUE argv[1] = { v_pathname };
+  VALUE argv[1] = { path };
   rb_obj_call_init(o_db, 1, argv);
 
   return o_db;
@@ -320,7 +333,7 @@ void Init_leveldb() {
   m_leveldb = rb_define_module("LevelDB");
 
   c_db = rb_define_class_under(m_leveldb, "DB", rb_cObject);
-  rb_define_singleton_method(c_db, "make", (VALUE (*)(...))db_make, 3);
+  rb_define_singleton_method(c_db, "make", (VALUE (*)(...))db_make, 1);
   rb_define_method(c_db, "initialize", (VALUE (*)(...))db_init, 1);
   rb_define_method(c_db, "get", (VALUE (*)(...))db_get, -1);
   rb_define_method(c_db, "delete", (VALUE (*)(...))db_delete, -1);
