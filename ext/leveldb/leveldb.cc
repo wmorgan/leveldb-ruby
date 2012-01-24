@@ -322,34 +322,34 @@ static VALUE db_batch(int argc, VALUE* argv, VALUE self) {
 }
 
 extern "C" {
-void Init_leveldb() {
-  k_fill = ID2SYM(rb_intern("fill_cache"));
-  k_verify = ID2SYM(rb_intern("verify_checksums"));
-  k_sync = ID2SYM(rb_intern("sync"));
-  to_s = rb_intern("to_s");
-  uncached_read_options = leveldb::ReadOptions();
-  uncached_read_options.fill_cache = false;
+  void Init_leveldb() {
+    k_fill = ID2SYM(rb_intern("fill_cache"));
+    k_verify = ID2SYM(rb_intern("verify_checksums"));
+    k_sync = ID2SYM(rb_intern("sync"));
+    to_s = rb_intern("to_s");
+    uncached_read_options = leveldb::ReadOptions();
+    uncached_read_options.fill_cache = false;
 
-  m_leveldb = rb_define_module("LevelDB");
+    m_leveldb = rb_define_module("LevelDB");
 
-  c_db = rb_define_class_under(m_leveldb, "DB", rb_cObject);
-  rb_define_singleton_method(c_db, "make", (VALUE (*)(...))db_make, 1);
-  rb_define_method(c_db, "initialize", (VALUE (*)(...))db_init, 1);
-  rb_define_method(c_db, "get", (VALUE (*)(...))db_get, -1);
-  rb_define_method(c_db, "delete", (VALUE (*)(...))db_delete, -1);
-  rb_define_method(c_db, "put", (VALUE (*)(...))db_put, -1);
-  rb_define_method(c_db, "exists?", (VALUE (*)(...))db_exists, 1);
-  rb_define_method(c_db, "close", (VALUE (*)(...))db_close, 0);
-  rb_define_method(c_db, "size", (VALUE (*)(...))db_size, 0);
-  rb_define_method(c_db, "each", (VALUE (*)(...))db_each, -1);
-  rb_define_method(c_db, "reverse_each", (VALUE (*)(...))db_reverse_each, -1);
-  rb_define_method(c_db, "batch", (VALUE (*)(...))db_batch, -1);
+    c_db = rb_define_class_under(m_leveldb, "DB", rb_cObject);
+    rb_define_singleton_method(c_db, "make", (VALUE (*)(...))db_make, 1);
+    rb_define_method(c_db, "initialize", (VALUE (*)(...))db_init, 1);
+    rb_define_method(c_db, "get", (VALUE (*)(...))db_get, -1);
+    rb_define_method(c_db, "delete", (VALUE (*)(...))db_delete, -1);
+    rb_define_method(c_db, "put", (VALUE (*)(...))db_put, -1);
+    rb_define_method(c_db, "exists?", (VALUE (*)(...))db_exists, 1);
+    rb_define_method(c_db, "close", (VALUE (*)(...))db_close, 0);
+    rb_define_method(c_db, "size", (VALUE (*)(...))db_size, 0);
+    rb_define_method(c_db, "each", (VALUE (*)(...))db_each, -1);
+    rb_define_method(c_db, "reverse_each", (VALUE (*)(...))db_reverse_each, -1);
+    rb_define_method(c_db, "batch", (VALUE (*)(...))db_batch, -1);
 
-  c_batch = rb_define_class_under(m_leveldb, "WriteBatch", rb_cObject);
-  rb_define_singleton_method(c_batch, "make", (VALUE (*)(...))batch_make, 0);
-  rb_define_method(c_batch, "put", (VALUE (*)(...))batch_put, 2);
-  rb_define_method(c_batch, "delete", (VALUE (*)(...))batch_delete, 1);
+    c_batch = rb_define_class_under(m_leveldb, "WriteBatch", rb_cObject);
+    rb_define_singleton_method(c_batch, "make", (VALUE (*)(...))batch_make, 0);
+    rb_define_method(c_batch, "put", (VALUE (*)(...))batch_put, 2);
+    rb_define_method(c_batch, "delete", (VALUE (*)(...))batch_delete, 1);
 
-  c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
-}
+    c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
+  }
 }
