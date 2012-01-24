@@ -4,8 +4,6 @@
 #include "leveldb/slice.h"
 #include "leveldb/write_batch.h"
 
-static VALUE m_leveldb;
-static VALUE c_db;
 static VALUE c_batch;
 static VALUE c_error;
 static VALUE k_fill;
@@ -333,9 +331,9 @@ extern "C" {
     uncached_read_options = leveldb::ReadOptions();
     uncached_read_options.fill_cache = false;
 
-    m_leveldb = rb_define_module("LevelDB");
+    VALUE m_leveldb = rb_define_module("LevelDB");
 
-    c_db = rb_define_class_under(m_leveldb, "DB", rb_cObject);
+    VALUE c_db = rb_define_class_under(m_leveldb, "DB", rb_cObject);
     rb_define_singleton_method(c_db, "make", (VALUE (*)(...))db_make, 1);
     rb_define_method(c_db, "initialize", (VALUE (*)(...))db_init, 1);
     rb_define_method(c_db, "get", (VALUE (*)(...))db_get, -1);
