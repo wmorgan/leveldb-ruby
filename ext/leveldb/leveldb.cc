@@ -27,6 +27,10 @@ static leveldb::ReadOptions uncached_read_options;
   }  \
 } while(0)
 
+#define RUBY_STRING_TO_SLICE(x) leveldb::Slice(RSTRING_PTR(x), RSTRING_LEN(x))
+#define SLICE_TO_RUBY_STRING(x) rb_str_new(x.data(), x.size())
+#define STRING_TO_RUBY_STRING(x) rb_str_new(x.data(), x.size())
+
 namespace {
   bool hash_val_test(VALUE h, VALUE key) {
     VALUE v = rb_hash_aref(h, key);
