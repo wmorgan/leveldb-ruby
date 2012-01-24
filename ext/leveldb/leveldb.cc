@@ -2,6 +2,7 @@
 
 #include "leveldb/db.h"
 #include "leveldb/slice.h"
+#include "leveldb/cache.h"
 #include "leveldb/write_batch.h"
 
 static VALUE c_batch;
@@ -37,13 +38,32 @@ namespace {
 
   typedef struct bound_db {
     leveldb::DB* db;
+    leveldb::Options* options;
+
+    bound_db() :db(0), options(0)
+    {
+    }
+
+    void clear_data() {
+      if(db) {
+        delete db;
+        db = 0;
+      }
+
+      if(options) {
+        if(options->block_cache) {
+          delete options->block_cache;
+          options->block_cache = 0;
+        }
+
+        delete options;
+        options = 0;
+      }
+    }
   } bound_db;
 
   void db_free(bound_db* db) {
-    if(db->db != NULL) {
-      delete db->db;
-      db->db = NULL;
-    }
+    db->clear_data();
     delete db;
   }
 
@@ -77,11 +97,7 @@ namespace {
   VALUE db_close(VALUE self) {
     bound_db* db;
     Data_Get_Struct(self, bound_db, db);
-
-    if(db->db != NULL) {
-      delete db->db;
-      db->db = NULL;
-    }
+    db->clear_data();
     return Qtrue;
   }
 
