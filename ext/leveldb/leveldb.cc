@@ -40,7 +40,8 @@ namespace {
     leveldb::DB* db;
     leveldb::Options* options;
 
-    bound_db() :db(0), options(0)
+    bound_db()
+      : db(0), options(0)
     {
     }
 
@@ -76,15 +77,15 @@ namespace {
     bound_db* db = new bound_db;
     std::string pathname = std::string((char*)RSTRING_PTR(path));
 
-    leveldb::Options options;
+    db->options = new leveldb::Options;
     if(hash_val_test(params, ID2SYM(rb_intern("create_if_missing")))) {
-      options.create_if_missing = true;
+      db->options->create_if_missing = true;
     }
 
     if(hash_val_test(params, ID2SYM(rb_intern("error_if_exists")))) {
-      options.error_if_exists = true;
+      db->options->error_if_exists = true;
     }
-    leveldb::Status status = leveldb::DB::Open(options, pathname, &db->db);
+    leveldb::Status status = leveldb::DB::Open(*(db->options), pathname, &db->db);
     RAISE_ON_ERROR(status);
 
     VALUE o_db = Data_Wrap_Struct(klass, NULL, db_free, db);
