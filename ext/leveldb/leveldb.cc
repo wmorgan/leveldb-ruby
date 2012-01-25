@@ -40,7 +40,8 @@ namespace {
     leveldb::DB* db;
     leveldb::Options* options;
 
-    bound_db() :db(0), options(0)
+    bound_db()
+      : db(0), options(0)
     {
     }
 
