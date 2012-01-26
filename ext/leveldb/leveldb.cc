@@ -28,6 +28,7 @@ namespace {
   VALUE k_fill;
   VALUE k_verify;
   VALUE k_sync;
+  VALUE k_path;
   ID to_s;
   leveldb::ReadOptions uncached_read_options;
 
@@ -70,8 +71,7 @@ namespace {
 
   VALUE db_make(VALUE klass, VALUE params) {
     Check_Type(params, T_HASH);
-
-    VALUE path = rb_hash_aref(params, ID2SYM(rb_intern("path")));
+    VALUE path = rb_hash_aref(params, k_path);
     Check_Type(path, T_STRING);
 
     bound_db* db = new bound_db;
@@ -344,6 +344,7 @@ extern "C" {
     k_fill = ID2SYM(rb_intern("fill_cache"));
     k_verify = ID2SYM(rb_intern("verify_checksums"));
     k_sync = ID2SYM(rb_intern("sync"));
+    k_path = ID2SYM(rb_intern("path"));
     to_s = rb_intern("to_s");
     uncached_read_options = leveldb::ReadOptions();
     uncached_read_options.fill_cache = false;
