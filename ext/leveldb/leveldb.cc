@@ -5,14 +5,6 @@
 #include "leveldb/cache.h"
 #include "leveldb/write_batch.h"
 
-static VALUE c_batch;
-static VALUE c_error;
-static VALUE k_fill;
-static VALUE k_verify;
-static VALUE k_sync;
-static ID to_s;
-static leveldb::ReadOptions uncached_read_options;
-
 // support 1.9 and 1.8
 #ifndef RSTRING_PTR
 #define RSTRING_PTR(v) RSTRING(v)->ptr
@@ -31,6 +23,14 @@ static leveldb::ReadOptions uncached_read_options;
 #define STRING_TO_RUBY_STRING(x) rb_str_new(x.data(), x.size())
 
 namespace {
+  VALUE c_batch;
+  VALUE c_error;
+  VALUE k_fill;
+  VALUE k_verify;
+  VALUE k_sync;
+  ID to_s;
+  leveldb::ReadOptions uncached_read_options;
+
   bool hash_val_test(VALUE h, VALUE key) {
     VALUE v = rb_hash_aref(h, key);
     return RTEST(v);
