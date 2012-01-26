@@ -36,7 +36,7 @@ namespace {
     return RTEST(v);
   }
 
-  typedef struct bound_db {
+  struct bound_db {
     leveldb::DB* db;
     leveldb::Options* options;
 
@@ -61,7 +61,7 @@ namespace {
         options = 0;
       }
     }
-  } bound_db;
+  };
 
   void db_free(bound_db* db) {
     db->clear_data();
