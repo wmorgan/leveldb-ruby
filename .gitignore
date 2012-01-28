@@ -6,5 +6,10 @@ ext/leveldb/leveldb.so
 ext/leveldb/libleveldb.a
 leveldb/libleveldb.a
 leveldb/leveldb.gyp
+leveldb/build_config.mk
 pkg
 test/*.db
+GPATH
+GRTAGS
+GSYMS
+GTAGS
