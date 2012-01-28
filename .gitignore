@@ -1,5 +1,6 @@
 .*.swp
 *.o
+/doc
 ext/leveldb/Makefile
 ext/leveldb/extconf.h
 ext/leveldb/leveldb.so

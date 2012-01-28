@@ -25,6 +25,7 @@
 namespace {
   VALUE c_batch;
   VALUE c_error;
+  VALUE c_db_options;
   VALUE k_fill;
   VALUE k_verify;
   VALUE k_sync;
@@ -39,11 +40,14 @@ namespace {
 
   struct bound_db {
     leveldb::DB* db;
-    leveldb::Options* options;
 
     bound_db()
-      : db(0), options(0)
+      : db(0)
     {
+    }
+
+    ~bound_db() {
+      clear_data();
     }
 
     void clear_data() {
@@ -51,7 +55,22 @@ namespace {
         delete db;
         db = 0;
       }
+    }
+  };
 
+  void db_free(bound_db* db) {
+    delete db;
+  }
+
+  struct bound_db_options {
+    leveldb::Options* options;
+
+    bound_db_options()
+      : options(0)
+    {
+    }
+
+    ~bound_db_options() {
       if(options) {
         if(options->block_cache) {
           delete options->block_cache;
@@ -64,9 +83,8 @@ namespace {
     }
   };
 
-  void db_free(bound_db* db) {
-    db->clear_data();
-    delete db;
+  void db_options_free(bound_db_options* options) {
+    delete options;
   }
 
   VALUE db_make(VALUE klass, VALUE params) {
@@ -77,18 +95,21 @@ namespace {
     bound_db* db = new bound_db;
     std::string pathname = std::string((char*)RSTRING_PTR(path));
 
-    db->options = new leveldb::Options;
+    bound_db_options* options = new bound_db_options;
+    options->options = new leveldb::Options;
     if(hash_val_test(params, ID2SYM(rb_intern("create_if_missing")))) {
-      db->options->create_if_missing = true;
+      options->options->create_if_missing = true;
     }
 
     if(hash_val_test(params, ID2SYM(rb_intern("error_if_exists")))) {
-      db->options->error_if_exists = true;
+      options->options->error_if_exists = true;
     }
-    leveldb::Status status = leveldb::DB::Open(*(db->options), pathname, &db->db);
+    leveldb::Status status = leveldb::DB::Open(*(options->options), pathname, &db->db);
     RAISE_ON_ERROR(status);
 
     VALUE o_db = Data_Wrap_Struct(klass, NULL, db_free, db);
+    VALUE o_options = Data_Wrap_Struct(c_db_options, NULL, db_options_free, options);
+    rb_iv_set(o_db, "@options", o_options);
     VALUE argv[1] = { path };
     rb_obj_call_init(o_db, 1, argv);
 
@@ -337,6 +358,18 @@ namespace {
     RAISE_ON_ERROR(status);
     return Qtrue;
   }
+
+  // -------------------------------------------------------
+  // db_options methods
+  VALUE db_options_paranoid_checks(VALUE self) {
+    bound_db_options* db_options;
+    Data_Get_Struct(self, bound_db_options, db_options);
+    if(db_options->options->paranoid_checks) {
+      return Qtrue;
+    } else {
+      return Qfalse;
+    }
+  }
 }
 
 extern "C" {
@@ -370,5 +403,7 @@ extern "C" {
     rb_define_method(c_batch, "delete", (VALUE (*)(...))batch_delete, 1);
 
     c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
+    c_db_options = rb_define_class_under(m_leveldb, "Options", rb_cObject);
+    rb_define_method(c_db_options, "paranoid_checks", (VALUE (*)(...))db_options_paranoid_checks, 0);
   }
 }
