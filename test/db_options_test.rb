@@ -10,6 +10,6 @@ class DBOptionsDefaultTest < Test::Unit::TestCase
   end
 
   def test_paranoid_check
-    assert_equal @db.options.paranoid_checks, true
+    assert_equal @db.options.paranoid_checks, false
   end
 end
