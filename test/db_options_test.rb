@@ -14,4 +14,19 @@ class DBOptionsTest < Test::Unit::TestCase
     db = LevelDB::DB.new(:path => @path, :paranoid_checks => true)
     assert_equal db.options.paranoid_checks, true
   end
+
+  def test_paranoid_check_off
+    db = LevelDB::DB.new(:path => @path, :paranoid_checks => false)
+    assert_equal db.options.paranoid_checks, false
+  end
+
+  def test_write_buffer_size_default
+    db = LevelDB::DB.new(:path => @path)
+    assert_equal db.options.write_buffer_size, (4 * 1024 * 1024)
+  end
+
+  def test_write_buffer_size
+    db = LevelDB::DB.new(:path => @path, :write_buffer_size => 10 * 1042)
+    assert_equal db.options.write_buffer_size, (10 * 1042)
+  end
 end
