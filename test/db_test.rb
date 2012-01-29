@@ -1,5 +1,4 @@
-require 'test/unit'
-require File.expand_path("../../lib/leveldb", __FILE__)
+require File.expand_path('test_helper', File.dirname(__FILE__))
 require 'fileutils'
 
 class DBTest < Test::Unit::TestCase
