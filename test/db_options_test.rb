@@ -1,6 +1,4 @@
-require 'test/unit'
-require File.expand_path(File.join('..', '..', 'lib', 'leveldb'), __FILE__)
-require 'fileutils'
+require File.expand_path('test_helper', File.dirname(__FILE__))
 
 class DBOptionsDefaultTest < Test::Unit::TestCase
   def setup
