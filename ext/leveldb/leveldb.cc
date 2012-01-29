@@ -38,6 +38,10 @@ namespace {
     return RTEST(v);
   }
 
+  VALUE str2sym(const char* char_p) {
+    return ID2SYM(rb_intern(char_p));
+  }
+
   struct bound_db {
     leveldb::DB* db;
 
@@ -87,6 +91,27 @@ namespace {
     delete options;
   }
 
+  void set_db_option(leveldb::Options* options, VALUE opts) {
+    Check_Type(opts, T_HASH);
+
+    if(hash_val_test(opts, str2sym("create_if_missing"))) {
+      options->create_if_missing = true;
+    }
+
+    if(hash_val_test(opts, str2sym("error_if_exists"))) {
+      options->error_if_exists = true;
+    }
+
+    VALUE v = rb_hash_aref(opts, str2sym("paranoid_checks"));
+    if(!NIL_P(v)) {
+      if(Qtrue == v) {
+        options->paranoid_checks = true;
+      } else {
+        options->paranoid_checks = false;
+      }
+    }
+  }
+
   VALUE db_make(VALUE klass, VALUE params) {
     Check_Type(params, T_HASH);
     VALUE path = rb_hash_aref(params, k_path);
@@ -97,13 +122,8 @@ namespace {
 
     bound_db_options* options = new bound_db_options;
     options->options = new leveldb::Options;
-    if(hash_val_test(params, ID2SYM(rb_intern("create_if_missing")))) {
-      options->options->create_if_missing = true;
-    }
+    set_db_option(options->options, params);
 
-    if(hash_val_test(params, ID2SYM(rb_intern("error_if_exists")))) {
-      options->options->error_if_exists = true;
-    }
     leveldb::Status status = leveldb::DB::Open(*(options->options), pathname, &db->db);
     RAISE_ON_ERROR(status);
 
