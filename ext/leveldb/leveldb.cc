@@ -102,13 +102,20 @@ namespace {
       options->error_if_exists = true;
     }
 
-    VALUE v = rb_hash_aref(opts, str2sym("paranoid_checks"));
+    VALUE v;
+
+    v = rb_hash_aref(opts, str2sym("paranoid_checks"));
     if(!NIL_P(v)) {
       if(Qtrue == v) {
         options->paranoid_checks = true;
       } else {
         options->paranoid_checks = false;
       }
+    }
+
+    v = rb_hash_aref(opts, str2sym("write_buffer_size"));
+    if(FIXNUM_P(v)) {
+      options->write_buffer_size = NUM2ULONG(v);
     }
   }
 
@@ -390,6 +397,12 @@ namespace {
       return Qfalse;
     }
   }
+
+  VALUE db_options_write_buffer_size(VALUE self) {
+    bound_db_options* db_options;
+    Data_Get_Struct(self, bound_db_options, db_options);
+    return INT2NUM(db_options->options->write_buffer_size);
+  }
 }
 
 extern "C" {
@@ -424,6 +437,9 @@ extern "C" {
 
     c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
     c_db_options = rb_define_class_under(m_leveldb, "Options", rb_cObject);
-    rb_define_method(c_db_options, "paranoid_checks", (VALUE (*)(...))db_options_paranoid_checks, 0);
+    rb_define_method(c_db_options, "paranoid_checks",
+                     (VALUE (*)(...))db_options_paranoid_checks, 0);
+    rb_define_method(c_db_options, "write_buffer_size",
+                     (VALUE (*)(...))db_options_write_buffer_size, 0);
   }
 }

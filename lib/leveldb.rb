@@ -53,6 +53,8 @@ module LevelDB
       # open level-db database
       # options[:path]:: path for level-db data
       # options[:paranoid_checks]:: true/false. If this value is true, db use paranoid_checks
+      # options[:write_buffer_size]:: write buffer size
+      #
       # return:: LevelDB::DB instance
       def open(options)
         make(options)
