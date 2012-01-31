@@ -117,6 +117,11 @@ namespace {
     if(FIXNUM_P(v)) {
       options->write_buffer_size = NUM2UINT(v);
     }
+
+    v = rb_hash_aref(opts, str2sym("max_open_files"));
+    if(FIXNUM_P(v)) {
+      options->max_open_files = NUM2INT(v);
+    }
   }
 
   VALUE db_make(VALUE klass, VALUE params) {
