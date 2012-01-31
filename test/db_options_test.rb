@@ -34,4 +34,9 @@ class DBOptionsTest < Test::Unit::TestCase
     db = LevelDB::DB.new(:path => @path)
     assert_equal db.options.max_open_files, 1000
   end
+
+  def test_max_open_files
+    db = LevelDB::DB.new(:path => @path, :max_open_files => 2000)
+    assert_equal db.options.max_open_files, 2000
+  end
 end
