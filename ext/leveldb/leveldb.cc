@@ -94,8 +94,12 @@ namespace {
     delete options;
   }
 
-  void set_db_option(leveldb::Options* options, VALUE opts) {
+  void set_db_option(VALUE o_options, VALUE opts) {
     Check_Type(opts, T_HASH);
+
+    bound_db_options* db_options;
+    Data_Get_Struct(o_options, bound_db_options, db_options);
+    leveldb::Options* options = db_options->options;
 
     if(hash_val_test(opts, str2sym("create_if_missing"))) {
       options->create_if_missing = true;
@@ -125,6 +129,12 @@ namespace {
     if(FIXNUM_P(v)) {
       options->max_open_files = NUM2INT(v);
     }
+
+    v = rb_hash_aref(opts, str2sym("block_cache_size"));
+    if(FIXNUM_P(v)) {
+      options->block_cache = leveldb::NewLRUCache(NUM2INT(v));
+      rb_iv_set(o_options, "@block_cache_size", v);
+    }
   }
 
   VALUE db_make(VALUE klass, VALUE params) {
@@ -135,15 +145,16 @@ namespace {
     auto_ptr<bound_db> db(new bound_db);
     std::string pathname = std::string((char*)RSTRING_PTR(path));
 
-    auto_ptr<bound_db_options> options(new bound_db_options);
-    options->options = new leveldb::Options;
-    set_db_option(options->options, params);
+    auto_ptr<bound_db_options> db_options(new bound_db_options);
+    db_options->options = new leveldb::Options;
+    leveldb::Options* options = db_options->options;
+    VALUE o_options = Data_Wrap_Struct(c_db_options, NULL, db_options_free, db_options.release());
+    set_db_option(o_options, params);
 
-    leveldb::Status status = leveldb::DB::Open(*(options->options), pathname, &db->db);
+    leveldb::Status status = leveldb::DB::Open(*(options), pathname, &db->db);
     RAISE_ON_ERROR(status);
 
     VALUE o_db = Data_Wrap_Struct(klass, NULL, db_free, db.release());
-    VALUE o_options = Data_Wrap_Struct(c_db_options, NULL, db_options_free, options.release());
     rb_iv_set(o_db, "@options", o_options);
     VALUE argv[1] = { path };
     rb_obj_call_init(o_db, 1, argv);
