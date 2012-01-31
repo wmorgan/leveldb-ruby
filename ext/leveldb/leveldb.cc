@@ -115,7 +115,7 @@ namespace {
 
     v = rb_hash_aref(opts, str2sym("write_buffer_size"));
     if(FIXNUM_P(v)) {
-      options->write_buffer_size = NUM2ULONG(v);
+      options->write_buffer_size = NUM2UINT(v);
     }
   }
 
@@ -401,7 +401,8 @@ namespace {
   VALUE db_options_write_buffer_size(VALUE self) {
     bound_db_options* db_options;
     Data_Get_Struct(self, bound_db_options, db_options);
-    return INT2NUM(db_options->options->write_buffer_size);
+    return UINT2NUM(db_options->options->write_buffer_size);
+  }
   }
 }
 
