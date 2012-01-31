@@ -31,7 +31,22 @@ class DBOptionsTest < Test::Unit::TestCase
   end
 
   def test_max_open_files_default
-    db = LevelDB::DB.new(:path => @path, :write_buffer_size => 10 * 1042)
-    # assert_equal db.options.max_open_files, 1000
+    db = LevelDB::DB.new(:path => @path)
+    assert_equal db.options.max_open_files, 1000
+  end
+
+  def test_max_open_files
+    db = LevelDB::DB.new(:path => @path, :max_open_files => 2000)
+    assert_equal db.options.max_open_files, 2000
+  end
+
+  def test_cache_size_default
+    db = LevelDB::DB.new(:path => @path)
+    assert_equal db.options.block_cache_size, nil
+  end
+
+  def test_cache_size
+    db = LevelDB::DB.new(:path => @path, :block_cache_size => 10 * 1024 * 1024)
+    assert_equal db.options.block_cache_size, (10 * 1024 * 1024)
   end
 end
