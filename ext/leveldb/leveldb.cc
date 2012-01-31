@@ -1,9 +1,12 @@
 #include <ruby.h>
+#include <memory>
 
 #include "leveldb/db.h"
 #include "leveldb/slice.h"
 #include "leveldb/cache.h"
 #include "leveldb/write_batch.h"
+
+using namespace std;
 
 // support 1.9 and 1.8
 #ifndef RSTRING_PTR
@@ -129,18 +132,18 @@ namespace {
     VALUE path = rb_hash_aref(params, k_path);
     Check_Type(path, T_STRING);
 
-    bound_db* db = new bound_db;
+    auto_ptr<bound_db> db(new bound_db);
     std::string pathname = std::string((char*)RSTRING_PTR(path));
 
-    bound_db_options* options = new bound_db_options;
+    auto_ptr<bound_db_options> options(new bound_db_options);
     options->options = new leveldb::Options;
     set_db_option(options->options, params);
 
     leveldb::Status status = leveldb::DB::Open(*(options->options), pathname, &db->db);
     RAISE_ON_ERROR(status);
 
-    VALUE o_db = Data_Wrap_Struct(klass, NULL, db_free, db);
-    VALUE o_options = Data_Wrap_Struct(c_db_options, NULL, db_options_free, options);
+    VALUE o_db = Data_Wrap_Struct(klass, NULL, db_free, db.release());
+    VALUE o_options = Data_Wrap_Struct(c_db_options, NULL, db_options_free, options.release());
     rb_iv_set(o_db, "@options", o_options);
     VALUE argv[1] = { path };
     rb_obj_call_init(o_db, 1, argv);
