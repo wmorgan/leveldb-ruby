@@ -59,4 +59,14 @@ class DBOptionsTest < Test::Unit::TestCase
     db = LevelDB::DB.new(:path => @path, :block_size => (2 * 1024))
     assert_equal db.options.block_size, (2 * 1024)
   end
+
+  def test_block_restart_interval_default
+    db = LevelDB::DB.new(:path => @path)
+    assert_equal db.options.block_restart_interval, 16
+  end
+
+  def test_block_restart_interval
+    db = LevelDB::DB.new(:path => @path, :block_restart_interval => 32)
+    assert_equal db.options.block_restart_interval, 32
+  end
 end
