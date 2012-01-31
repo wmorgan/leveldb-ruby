@@ -31,7 +31,7 @@ class DBOptionsTest < Test::Unit::TestCase
   end
 
   def test_max_open_files_default
-    db = LevelDB::DB.new(:path => @path, :write_buffer_size => 10 * 1042)
+    db = LevelDB::DB.new(:path => @path)
     assert_equal db.options.max_open_files, 1000
   end
 end
