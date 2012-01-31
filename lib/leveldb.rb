@@ -57,8 +57,8 @@ module LevelDB
       # options[:max_open_files]::    max open files
       # options[:block_cache_size]::  leveldb::NewLRUCache cache size. If this value is not set,
       #                               db don't use cache.
-      # options[:block_size]::        block size / not implement
-      # options[:block_restart_interval]:: block restart interval
+      # options[:block_size]::        block size
+      # options[:block_restart_interval]:: block restart interval / not implement
       # options[:compression]::            LevelDB::CompressionType::SnappyCompression /
       #                                    LevelDB::CompressionType::NoCompression /
       #                                    not implement

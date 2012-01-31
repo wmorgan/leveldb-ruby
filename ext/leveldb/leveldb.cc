@@ -135,6 +135,11 @@ namespace {
       options->block_cache = leveldb::NewLRUCache(NUM2INT(v));
       rb_iv_set(o_options, "@block_cache_size", v);
     }
+
+    v = rb_hash_aref(opts, str2sym("block_size"));
+    if(FIXNUM_P(v)) {
+      options->block_size = NUM2UINT(v);
+    }
   }
 
   VALUE db_make(VALUE klass, VALUE params) {
@@ -428,6 +433,12 @@ namespace {
     Data_Get_Struct(self, bound_db_options, db_options);
     return INT2NUM(db_options->options->max_open_files);
   }
+
+  VALUE db_options_block_size(VALUE self) {
+    bound_db_options* db_options;
+    Data_Get_Struct(self, bound_db_options, db_options);
+    return UINT2NUM(db_options->options->block_size);
+  }
 }
 
 extern "C" {
@@ -468,5 +479,7 @@ extern "C" {
                      (VALUE (*)(...))db_options_write_buffer_size, 0);
     rb_define_method(c_db_options, "max_open_files",
                      (VALUE (*)(...))db_options_max_open_files, 0);
+    rb_define_method(c_db_options, "block_size",
+                     (VALUE (*)(...))db_options_block_size, 0);
   }
 }

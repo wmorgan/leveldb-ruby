@@ -49,4 +49,14 @@ class DBOptionsTest < Test::Unit::TestCase
     db = LevelDB::DB.new(:path => @path, :block_cache_size => 10 * 1024 * 1024)
     assert_equal db.options.block_cache_size, (10 * 1024 * 1024)
   end
+
+  def test_block_size_default
+    db = LevelDB::DB.new(:path => @path)
+    assert_equal db.options.block_size, (4 * 1024)
+  end
+
+  def test_block_size
+    db = LevelDB::DB.new(:path => @path, :block_size => (2 * 1024))
+    assert_equal db.options.block_size, (2 * 1024)
+  end
 end
