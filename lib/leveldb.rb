@@ -51,16 +51,17 @@ module LevelDB
       end
 
       # open level-db database
-      # options[:path]:: path for level-db data
-      # options[:paranoid_checks]:: true/false. If this value is true, db use paranoid_checks
+      # options[:path]::              path for level-db data
+      # options[:paranoid_checks]::   true/false. If this value is true, db use paranoid_checks
       # options[:write_buffer_size]:: write buffer size
-      # options[:max_open_files]:: max open files / not implement
-      # options[:cache_size]:: leveldb::NewLRUCache cache size. If this value is not set,
-      #                        db don't use cache / not implement
-      # options[:block_size]:: block size / not implement
+      # options[:max_open_files]::    max open files
+      # options[:block_cache_size]::  leveldb::NewLRUCache cache size. If this value is not set,
+      #                               db don't use cache.
+      # options[:block_size]::        block size / not implement
       # options[:block_restart_interval]:: block restart interval
-      # options[:compression]:: LevelDB::CompressionType::SnappyCompression /
-      #                         LevelDB::CompressionType::NoCompression / not implement
+      # options[:compression]::            LevelDB::CompressionType::SnappyCompression /
+      #                                    LevelDB::CompressionType::NoCompression /
+      #                                    not implement
       #
       # return:: LevelDB::DB instance
       def open(options)
@@ -94,5 +95,6 @@ module LevelDB
   end
 
   class Options
+    attr_reader :block_cache_size
   end
 end
