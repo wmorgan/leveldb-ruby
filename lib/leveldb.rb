@@ -59,9 +59,8 @@ module LevelDB
       #                               db don't use cache.
       # options[:block_size]::        block size
       # options[:block_restart_interval]:: block restart interval
-      # options[:compression]::            LevelDB::CompressionType::SnappyCompression /
-      #                                    LevelDB::CompressionType::NoCompression /
-      #                                    not implement
+      # options[:compression]::            LevelDB::CompressionType::SnappyCompression or
+      #                                    LevelDB::CompressionType::NoCompression
       #
       # return:: LevelDB::DB instance
       def open(options)
@@ -96,5 +95,10 @@ module LevelDB
 
   class Options
     attr_reader :block_cache_size
+  end
+
+  module CompressionType
+    NoCompression     = 0x0
+    SnappyCompression = 0x1
   end
 end
