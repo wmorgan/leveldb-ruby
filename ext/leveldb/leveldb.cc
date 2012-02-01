@@ -145,6 +145,19 @@ namespace {
     if(FIXNUM_P(v)) {
       options->block_restart_interval = NUM2INT(v);
     }
+
+    v = rb_hash_aref(opts, str2sym("compression"));
+    if(FIXNUM_P(v)) {
+      switch(NUM2INT(v)) {
+      case 0x0:
+        options->compression = leveldb::kNoCompression;
+        break;
+
+      case 0x1:
+        options->compression = leveldb::kSnappyCompression;
+        break;
+      }
+    }
   }
 
   VALUE db_make(VALUE klass, VALUE params) {
@@ -450,6 +463,12 @@ namespace {
     Data_Get_Struct(self, bound_db_options, db_options);
     return INT2NUM(db_options->options->block_restart_interval);
   }
+
+  VALUE db_options_compression(VALUE self) {
+    bound_db_options* db_options;
+    Data_Get_Struct(self, bound_db_options, db_options);
+    return INT2NUM(db_options->options->compression);
+  }
 }
 
 extern "C" {
@@ -494,5 +513,7 @@ extern "C" {
                      (VALUE (*)(...))db_options_block_size, 0);
     rb_define_method(c_db_options, "block_restart_interval",
                      (VALUE (*)(...))db_options_block_restart_interval, 0);
+    rb_define_method(c_db_options, "compression",
+                     (VALUE (*)(...))db_options_compression, 0);
   }
 }

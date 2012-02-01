@@ -69,4 +69,14 @@ class DBOptionsTest < Test::Unit::TestCase
     db = LevelDB::DB.new(:path => @path, :block_restart_interval => 32)
     assert_equal db.options.block_restart_interval, 32
   end
+
+  def test_compression_default
+    db = LevelDB::DB.new(:path => @path)
+    assert_equal db.options.compression, LevelDB::CompressionType::SnappyCompression
+  end
+
+  def test_compression
+    db = LevelDB::DB.new(:path => @path, :compression => LevelDB::CompressionType::NoCompression)
+    assert_equal db.options.compression, LevelDB::CompressionType::NoCompression
+  end
 end
