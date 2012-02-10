@@ -160,6 +160,23 @@ namespace {
     }
   }
 
+  /*
+   * call-seq:
+   *   make(options)
+   *
+   * open level-db database
+   * options[:path]::              path for level-db data
+   * options[:paranoid_checks]::   true/false. If this value is true, db use paranoid_checks
+   * options[:write_buffer_size]:: write buffer size
+   * options[:max_open_files]::    max open files
+   * options[:block_cache_size]::  leveldb::NewLRUCache cache size. If this value is not set,
+   *                               db don't use cache.
+   * options[:block_size]::        block size
+   * options[:block_restart_interval]:: block restart interval
+   * options[:compression]::            LevelDB::CompressionType::SnappyCompression or
+   *                                    LevelDB::CompressionType::NoCompression
+   * return:: LevelDB::DB instance
+   */
   VALUE db_make(VALUE klass, VALUE params) {
     Check_Type(params, T_HASH);
     VALUE path = rb_hash_aref(params, k_path);
