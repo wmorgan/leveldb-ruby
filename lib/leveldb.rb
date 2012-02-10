@@ -17,7 +17,7 @@ module LevelDB
         end
         options[:create_if_missing] ||= true
         options[:error_if_exists] ||= false
-        open(options)
+        make(options)
       end
 
       ## Creates a new LevelDB database stored on disk at +pathname+. Throws an
@@ -32,7 +32,7 @@ module LevelDB
         end
         options[:create_if_missing] ||= true
         options[:error_if_exists] ||= true
-        open(options)
+        make(options)
       end
 
       ## Loads a LevelDB database stored on disk at +pathname+. Throws an
@@ -47,23 +47,6 @@ module LevelDB
         end
         options[:create_if_missing] ||= false
         options[:error_if_exists] ||= false
-        open(options)
-      end
-
-      # open level-db database
-      # options[:path]::              path for level-db data
-      # options[:paranoid_checks]::   true/false. If this value is true, db use paranoid_checks
-      # options[:write_buffer_size]:: write buffer size
-      # options[:max_open_files]::    max open files
-      # options[:block_cache_size]::  leveldb::NewLRUCache cache size. If this value is not set,
-      #                               db don't use cache.
-      # options[:block_size]::        block size
-      # options[:block_restart_interval]:: block restart interval
-      # options[:compression]::            LevelDB::CompressionType::SnappyCompression or
-      #                                    LevelDB::CompressionType::NoCompression
-      #
-      # return:: LevelDB::DB instance
-      def open(options)
         make(options)
       end
 
