@@ -484,36 +484,36 @@ extern "C" {
     VALUE m_leveldb = rb_define_module("LevelDB");
 
     VALUE c_db = rb_define_class_under(m_leveldb, "DB", rb_cObject);
-    rb_define_singleton_method(c_db, "make", (VALUE (*)(...))db_make, 1);
-    rb_define_method(c_db, "initialize", (VALUE (*)(...))db_init, 1);
-    rb_define_method(c_db, "get", (VALUE (*)(...))db_get, -1);
-    rb_define_method(c_db, "delete", (VALUE (*)(...))db_delete, -1);
-    rb_define_method(c_db, "put", (VALUE (*)(...))db_put, -1);
-    rb_define_method(c_db, "exists?", (VALUE (*)(...))db_exists, 1);
-    rb_define_method(c_db, "close", (VALUE (*)(...))db_close, 0);
-    rb_define_method(c_db, "size", (VALUE (*)(...))db_size, 0);
-    rb_define_method(c_db, "each", (VALUE (*)(...))db_each, -1);
-    rb_define_method(c_db, "reverse_each", (VALUE (*)(...))db_reverse_each, -1);
-    rb_define_method(c_db, "batch", (VALUE (*)(...))db_batch, -1);
+    rb_define_singleton_method(c_db, "make", RUBY_METHOD_FUNC(db_make), 1);
+    rb_define_method(c_db, "initialize", RUBY_METHOD_FUNC(db_init), 1);
+    rb_define_method(c_db, "get", RUBY_METHOD_FUNC(db_get), -1);
+    rb_define_method(c_db, "delete", RUBY_METHOD_FUNC(db_delete), -1);
+    rb_define_method(c_db, "put", RUBY_METHOD_FUNC(db_put), -1);
+    rb_define_method(c_db, "exists?", RUBY_METHOD_FUNC(db_exists), 1);
+    rb_define_method(c_db, "close", RUBY_METHOD_FUNC(db_close), 0);
+    rb_define_method(c_db, "size", RUBY_METHOD_FUNC(db_size), 0);
+    rb_define_method(c_db, "each", RUBY_METHOD_FUNC(db_each), -1);
+    rb_define_method(c_db, "reverse_each", RUBY_METHOD_FUNC(db_reverse_each), -1);
+    rb_define_method(c_db, "batch", RUBY_METHOD_FUNC(db_batch), -1);
 
     c_batch = rb_define_class_under(m_leveldb, "WriteBatch", rb_cObject);
-    rb_define_singleton_method(c_batch, "make", (VALUE (*)(...))batch_make, 0);
-    rb_define_method(c_batch, "put", (VALUE (*)(...))batch_put, 2);
-    rb_define_method(c_batch, "delete", (VALUE (*)(...))batch_delete, 1);
+    rb_define_singleton_method(c_batch, "make", RUBY_METHOD_FUNC(batch_make), 0);
+    rb_define_method(c_batch, "put", RUBY_METHOD_FUNC(batch_put), 2);
+    rb_define_method(c_batch, "delete", RUBY_METHOD_FUNC(batch_delete), 1);
 
     c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
     c_db_options = rb_define_class_under(m_leveldb, "Options", rb_cObject);
     rb_define_method(c_db_options, "paranoid_checks",
-                     (VALUE (*)(...))db_options_paranoid_checks, 0);
+                     RUBY_METHOD_FUNC(db_options_paranoid_checks), 0);
     rb_define_method(c_db_options, "write_buffer_size",
-                     (VALUE (*)(...))db_options_write_buffer_size, 0);
+                     RUBY_METHOD_FUNC(db_options_write_buffer_size), 0);
     rb_define_method(c_db_options, "max_open_files",
-                     (VALUE (*)(...))db_options_max_open_files, 0);
+                     RUBY_METHOD_FUNC(db_options_max_open_files), 0);
     rb_define_method(c_db_options, "block_size",
-                     (VALUE (*)(...))db_options_block_size, 0);
+                     RUBY_METHOD_FUNC(db_options_block_size), 0);
     rb_define_method(c_db_options, "block_restart_interval",
-                     (VALUE (*)(...))db_options_block_restart_interval, 0);
+                     RUBY_METHOD_FUNC(db_options_block_restart_interval), 0);
     rb_define_method(c_db_options, "compression",
-                     (VALUE (*)(...))db_options_compression, 0);
+                     RUBY_METHOD_FUNC(db_options_compression), 0);
   }
 }
