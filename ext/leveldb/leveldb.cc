@@ -162,22 +162,24 @@ namespace {
 
   /*
    * call-seq:
-   *   make(options)
+   *   open(options)
    *
    * open level-db database
-   * options[:path]::              path for level-db data
-   * options[:paranoid_checks]::   true/false. If this value is true, db use paranoid_checks
-   * options[:write_buffer_size]:: write buffer size
-   * options[:max_open_files]::    max open files
-   * options[:block_cache_size]::  leveldb::NewLRUCache cache size. If this value is not set,
-   *                               db don't use cache.
-   * options[:block_size]::        block size
-   * options[:block_restart_interval]:: block restart interval
-   * options[:compression]::            LevelDB::CompressionType::SnappyCompression or
-   *                                    LevelDB::CompressionType::NoCompression
-   * return:: LevelDB::DB instance
+   * [options[ :path ]]              path for level-db data
+   *                                 
+   *                                 This parameter is required.
+   * [options[ :paranoid_checks ]]   true/false. If this value is true, db use paranoid_checks
+   * [options[ :write_buffer_size ]] write buffer size
+   * [options[ :max_open_files ]]    max open files
+   * [options[ :block_cache_size ]]  leveldb::NewLRUCache cache size. If this value is not set,
+   *                                 db don't use cache.
+   * [options[ :block_size ]]        block size
+   * [options[ :block_restart_interval ]] block restart interval
+   * [options[ :compression ]]            LevelDB::CompressionType::SnappyCompression or
+   *                                      LevelDB::CompressionType::NoCompression
+   * [return] LevelDB::DB instance
    */
-  VALUE db_make(VALUE klass, VALUE params) {
+  VALUE db_open(VALUE klass, VALUE params) {
     Check_Type(params, T_HASH);
     VALUE path = rb_hash_aref(params, k_path);
     Check_Type(path, T_STRING);
@@ -235,6 +237,25 @@ namespace {
     return writeOptions;
   }
 
+  /*
+   * call-seq:
+   *   get(key, options = nil)
+   *
+   * get data from db
+   *
+   * [key]  key you want to get
+   * [options[ :fill_cache ]] Should the data read for this iteration be cached in memory?
+   *                          Callers may wish to set this field to false for bulk scans.
+   *                          
+   *                          true or false
+   *                          
+   *                          Default: true
+   * [options[ :verify_checksums ]] If true, all data read from underlying storage will be
+   *                                verified against corresponding checksums.
+   *                                
+   *                                Default: false
+   * [return] value of stored db
+   */
   VALUE db_get(int argc, VALUE* argv, VALUE self) {
     VALUE v_key, v_options;
     rb_scan_args(argc, argv, "11", &v_key, &v_options);
@@ -288,6 +309,32 @@ namespace {
     return Qtrue;
   }
 
+  /*
+   * call-seq:
+   *   put(key, value, options = nil)
+   *
+   * store data into DB
+   *
+   * [key] key you want to store
+   * [value] data you want to store
+   * [options[ :sync ]] If true, the write will be flushed from the operating system
+   *                    buffer cache (by calling WritableFile::Sync()) before the write
+   *                    is considered complete.  If this flag is true, writes will be
+   *                    slower.
+   *                    
+   *                    If this flag is false, and the machine crashes, some recent
+   *                    writes may be lost.  Note that if it is just the process that
+   *                    crashes (i.e., the machine does not reboot), no writes will be
+   *                    lost even if sync==false.
+   *                    
+   *                    In other words, a DB write with sync==false has similar
+   *                    crash semantics as the "write()" system call.  A DB write
+   *                    with sync==true has similar crash semantics to a "write()"
+   *                    system call followed by "fsync()".
+   *                    
+   *                    Default: false
+   * [returns] stored value
+   */
   VALUE db_put(int argc, VALUE* argv, VALUE self) {
     VALUE v_key, v_value, v_options;
 
@@ -501,7 +548,7 @@ extern "C" {
     VALUE m_leveldb = rb_define_module("LevelDB");
 
     VALUE c_db = rb_define_class_under(m_leveldb, "DB", rb_cObject);
-    rb_define_singleton_method(c_db, "make", RUBY_METHOD_FUNC(db_make), 1);
+    rb_define_singleton_method(c_db, "open", RUBY_METHOD_FUNC(db_open), 1);
     rb_define_method(c_db, "initialize", RUBY_METHOD_FUNC(db_init), 1);
     rb_define_method(c_db, "get", RUBY_METHOD_FUNC(db_get), -1);
     rb_define_method(c_db, "delete", RUBY_METHOD_FUNC(db_delete), -1);
