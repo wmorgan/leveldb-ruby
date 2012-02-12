@@ -333,7 +333,7 @@ namespace {
    *                    system call followed by "fsync()".
    *                    
    *                    Default: false
-   * [returns] stored value
+   * [return] stored value
    */
   VALUE db_put(int argc, VALUE* argv, VALUE self) {
     VALUE v_key, v_value, v_options;
