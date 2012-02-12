@@ -162,7 +162,7 @@ namespace {
 
   /*
    * call-seq:
-   *   open(options)
+   *   make(options)
    *
    * open level-db database
    * [options[ :path ]]              path for level-db data
@@ -179,7 +179,7 @@ namespace {
    *                                      LevelDB::CompressionType::NoCompression
    * [return] LevelDB::DB instance
    */
-  VALUE db_open(VALUE klass, VALUE params) {
+  VALUE db_make(VALUE klass, VALUE params) {
     Check_Type(params, T_HASH);
     VALUE path = rb_hash_aref(params, k_path);
     Check_Type(path, T_STRING);
@@ -548,7 +548,7 @@ extern "C" {
     VALUE m_leveldb = rb_define_module("LevelDB");
 
     VALUE c_db = rb_define_class_under(m_leveldb, "DB", rb_cObject);
-    rb_define_singleton_method(c_db, "open", RUBY_METHOD_FUNC(db_open), 1);
+    rb_define_singleton_method(c_db, "make", RUBY_METHOD_FUNC(db_make), 1);
     rb_define_method(c_db, "initialize", RUBY_METHOD_FUNC(db_init), 1);
     rb_define_method(c_db, "get", RUBY_METHOD_FUNC(db_get), -1);
     rb_define_method(c_db, "delete", RUBY_METHOD_FUNC(db_delete), -1);
