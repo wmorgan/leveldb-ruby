@@ -7,7 +7,7 @@ module LevelDB
 
       ## Loads or creates a LevelDB database as necessary, stored on disk at
       ## +pathname+.
-      # see more detail open methods.
+      # see more detail make methods.
       def new opt
         options = {}
         if opt.is_a?(String)
@@ -17,12 +17,12 @@ module LevelDB
         end
         options[:create_if_missing] ||= true
         options[:error_if_exists] ||= false
-        open(options)
+        make(options)
       end
 
       ## Creates a new LevelDB database stored on disk at +pathname+. Throws an
       ## exception if the database already exists.
-      # see more detail open methods.
+      # see more detail make methods.
       def create pathname
         options = {}
         if opt.is_a?(String)
@@ -32,12 +32,12 @@ module LevelDB
         end
         options[:create_if_missing] ||= true
         options[:error_if_exists] ||= true
-        open(options)
+        make(options)
       end
 
       ## Loads a LevelDB database stored on disk at +pathname+. Throws an
       ## exception unless the database already exists.
-      # see more detail open methods.
+      # see more detail make methods.
       def load pathname
         options = {}
         if opt.is_a?(String)
@@ -47,7 +47,7 @@ module LevelDB
         end
         options[:create_if_missing] ||= false
         options[:error_if_exists] ||= false
-        open(options)
+        make(options)
       end
 
       private
