@@ -113,7 +113,7 @@ class IterationTest < Test::Unit::TestCase
     assert_equal DB, iter.db
     assert_nil iter.from
     assert_nil iter.to
-    assert_equal false, iter.reversed?
+    assert !iter.reversed?
   end
 
   def test_iterator_init_with_options
@@ -121,7 +121,7 @@ class IterationTest < Test::Unit::TestCase
     assert_equal DB,iter.db
     assert_equal 'abc', iter.from
     assert_equal 'def', iter.to
-    assert_equal true, iter.reversed?
+    assert iter.reversed?
   end
 
   def test_iterator_init_with_no_args

@@ -4,7 +4,6 @@ module LevelDB
 class DB
   include Enumerable
   class << self
-
     ## Loads or creates a LevelDB database as necessary, stored on disk at
     ## +pathname+.
     def new pathname
@@ -39,14 +38,13 @@ class DB
   alias :[] :get
   alias :[]= :put
 
-  def each(*args)
-    iterator = Iterator.new(self, *args)
-    if block_given?
-      iterator.each &Proc.new
-    end
-    iterator
+  def each(*args, &block)
+    i = iterator(*args)
+    i.each(&block) if block
+    i
   end
 
+  def iterator(*args); Iterator.new self, *args end
   def keys; map { |k, v| k } end
   def values; map { |k, v| v } end
 
@@ -60,14 +58,11 @@ class Iterator
 
   attr_reader :db, :from, :to
 
-  def self.new(db, options = nil)
-    make(db, options || {})
+  def self.new(db, opts={})
+    make db, opts
   end
 
-  def reversed?
-    !!@reversed
-  end
-
+  def reversed?; @reversed end
   def inspect
     %(<#{self.class} #{@db.inspect} @from=#{@from.inspect} @to=#{@to.inspect}#{' (reversed)' if @reversed}>)
   end
@@ -78,4 +73,4 @@ class WriteBatch
     private :new
   end
 end
-end
+end # module LevelDB
