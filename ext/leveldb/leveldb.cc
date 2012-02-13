@@ -287,7 +287,7 @@ static bool iter_valid(current_iteration* iter) {
     } else {
       if(iter->iterator->Valid()) {
         iter->current_key = iter->iterator->key();
-        
+
         if(iter->check_limit &&
             (iter->reversed ?
               (iter->current_key.ToString() < iter->key_to_str) :
