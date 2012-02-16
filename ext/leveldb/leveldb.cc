@@ -1,6 +1,7 @@
 #include <ruby.h>
 
 #include "leveldb/db.h"
+#include "leveldb/cache.h"
 #include "leveldb/slice.h"
 #include "leveldb/write_batch.h"
 
@@ -19,6 +20,17 @@ static VALUE k_class;
 static VALUE k_name;
 static ID to_s;
 static leveldb::ReadOptions uncached_read_options;
+
+static VALUE c_db_options;
+static VALUE k_create_if_missing;
+static VALUE k_error_if_exists;
+static VALUE k_paranoid_checks;
+static VALUE k_write_buffer_size;
+static VALUE k_block_cache_size;
+static VALUE k_block_size;
+static VALUE k_block_restart_interval;
+static VALUE k_compression;
+static VALUE k_max_open_files;
 
 // support 1.9 and 1.8
 #ifndef RSTRING_PTR
@@ -43,6 +55,102 @@ static void db_free(bound_db* db) {
     db->db = NULL;
   }
   delete db;
+}
+
+typedef struct bound_db_options {
+  leveldb::Options* options;
+
+  bound_db_options()
+    : options(0)
+  {
+  }
+
+  ~bound_db_options() {
+    if(options) {
+      if(options->block_cache) {
+        delete options->block_cache;
+        options->block_cache = 0;
+      }
+
+      delete options;
+      options = 0;
+    }
+  }
+} bound_db_options;
+
+static void db_options_free(bound_db_options* options) {
+  delete options;
+}
+
+static bool hash_val_test(VALUE h, VALUE key) {
+  VALUE v = rb_hash_aref(h, key);
+  return RTEST(v);
+}
+
+static void set_db_option(VALUE o_options, VALUE opts) {
+  Check_Type(opts, T_HASH);
+
+  bound_db_options* db_options;
+  Data_Get_Struct(o_options, bound_db_options, db_options);
+  leveldb::Options* options = db_options->options;
+
+  if(hash_val_test(opts, k_create_if_missing)) {
+    options->create_if_missing = true;
+  }
+
+  if(hash_val_test(opts, k_error_if_exists)) {
+    options->error_if_exists = true;
+  }
+
+  VALUE v;
+
+  v = rb_hash_aref(opts, k_paranoid_checks);
+  if(!NIL_P(v)) {
+    if(Qtrue == v) {
+      options->paranoid_checks = true;
+    } else {
+      options->paranoid_checks = false;
+    }
+  }
+
+  v = rb_hash_aref(opts, k_write_buffer_size);
+  if(FIXNUM_P(v)) {
+    options->write_buffer_size = NUM2UINT(v);
+  }
+
+  v = rb_hash_aref(opts, k_max_open_files);
+  if(FIXNUM_P(v)) {
+    options->max_open_files = NUM2INT(v);
+  }
+
+  v = rb_hash_aref(opts, k_block_cache_size);
+  if(FIXNUM_P(v)) {
+    options->block_cache = leveldb::NewLRUCache(NUM2INT(v));
+    rb_iv_set(o_options, "@block_cache_size", v);
+  }
+
+  v = rb_hash_aref(opts, k_block_size);
+  if(FIXNUM_P(v)) {
+    options->block_size = NUM2UINT(v);
+  }
+
+  v = rb_hash_aref(opts, k_block_restart_interval);
+  if(FIXNUM_P(v)) {
+    options->block_restart_interval = NUM2INT(v);
+  }
+
+  v = rb_hash_aref(opts, k_compression);
+  if(FIXNUM_P(v)) {
+    switch(NUM2INT(v)) {
+    case 0x0:
+      options->compression = leveldb::kNoCompression;
+      break;
+
+    case 0x1:
+      options->compression = leveldb::kSnappyCompression;
+      break;
+    }
+  }
 }
 
 static VALUE db_make(VALUE klass, VALUE v_pathname, VALUE v_create_if_necessary, VALUE v_break_if_exists) {
@@ -493,6 +601,16 @@ void Init_leveldb() {
   k_reversed = ID2SYM(rb_intern("reversed"));
   k_class = rb_intern("class");
   k_name = rb_intern("name");
+  k_create_if_missing = ID2SYM(rb_intern("create_if_missing"));
+  k_error_if_exists = ID2SYM(rb_intern("error_if_exists"));
+  k_paranoid_checks = ID2SYM(rb_intern("paranoid_checks"));
+  k_write_buffer_size = ID2SYM(rb_intern("write_buffer_size"));
+  k_block_cache_size = ID2SYM(rb_intern("block_cache_size"));
+  k_block_size = ID2SYM(rb_intern("block_size"));
+  k_block_restart_interval = ID2SYM(rb_intern("block_restart_interval"));
+  k_compression = ID2SYM(rb_intern("k_compression"));
+  k_max_open_files = ID2SYM(rb_intern("k_max_open_files"));
+
   to_s = rb_intern("to_s");
   uncached_read_options = leveldb::ReadOptions();
   uncached_read_options.fill_cache = false;
@@ -523,6 +641,20 @@ void Init_leveldb() {
   rb_define_singleton_method(c_batch, "make", RUBY_METHOD_FUNC(batch_make), 0);
   rb_define_method(c_batch, "put", RUBY_METHOD_FUNC(batch_put), 2);
   rb_define_method(c_batch, "delete", RUBY_METHOD_FUNC(batch_delete), 1);
+
+  c_db_options = rb_define_class_under(m_leveldb, "Options", rb_cObject);
+  // rb_define_method(c_db_options, "paranoid_checks",
+  //                  RUBY_METHOD_FUNC(db_options_paranoid_checks), 0);
+  // rb_define_method(c_db_options, "write_buffer_size",
+  //                  RUBY_METHOD_FUNC(db_options_write_buffer_size), 0);
+  // rb_define_method(c_db_options, "max_open_files",
+  //                  RUBY_METHOD_FUNC(db_options_max_open_files), 0);
+  // rb_define_method(c_db_options, "block_size",
+  //                  RUBY_METHOD_FUNC(db_options_block_size), 0);
+  // rb_define_method(c_db_options, "block_restart_interval",
+  //                  RUBY_METHOD_FUNC(db_options_block_restart_interval), 0);
+  // rb_define_method(c_db_options, "compression",
+  //                  RUBY_METHOD_FUNC(db_options_compression), 0);
 
   c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
 }
