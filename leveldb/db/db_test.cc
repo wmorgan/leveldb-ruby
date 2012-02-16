@@ -28,8 +28,12 @@ class SpecialEnv : public EnvWrapper {
   // sstable Sync() calls are blocked while this pointer is non-NULL.
   port::AtomicPointer delay_sstable_sync_;
 
+  // Simulate no-space errors while this pointer is non-NULL.
+  port::AtomicPointer no_space_;
+
   explicit SpecialEnv(Env* base) : EnvWrapper(base) {
     delay_sstable_sync_.Release_Store(NULL);
+    no_space_.Release_Store(NULL);
   }
 
   Status NewWritableFile(const std::string& f, WritableFile** r) {
@@ -44,7 +48,14 @@ class SpecialEnv : public EnvWrapper {
             base_(base) {
       }
       ~SSTableFile() { delete base_; }
-      Status Append(const Slice& data) { return base_->Append(data); }
+      Status Append(const Slice& data) {
+        if (env_->no_space_.Acquire_Load() != NULL) {
+          // Drop writes on the floor
+          return Status::OK();
+        } else {
+          return base_->Append(data);
+        }
+      }
       Status Close() { return base_->Close(); }
       Status Flush() { return base_->Flush(); }
       Status Sync() {
@@ -136,6 +147,33 @@ class DBTest {
     return result;
   }
 
+  // Return a string that contains all key,value pairs in order,
+  // formatted like "(k1->v1)(k2->v2)".
+  std::string Contents() {
+    std::vector<std::string> forward;
+    std::string result;
+    Iterator* iter = db_->NewIterator(ReadOptions());
+    for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
+      std::string s = IterStatus(iter);
+      result.push_back('(');
+      result.append(s);
+      result.push_back(')');
+      forward.push_back(s);
+    }
+
+    // Check reverse iteration results are the reverse of forward results
+    int matched = 0;
+    for (iter->SeekToLast(); iter->Valid(); iter->Prev()) {
+      ASSERT_LT(matched, forward.size());
+      ASSERT_EQ(IterStatus(iter), forward[forward.size() - matched - 1]);
+      matched++;
+    }
+    ASSERT_EQ(matched, forward.size());
+
+    delete iter;
+    return result;
+  }
+
   std::string AllEntriesFor(const Slice& user_key) {
     Iterator* iter = dbfull()->TEST_NewInternalIterator();
     InternalKey target(user_key, kMaxSequenceNumber, kTypeValue);
@@ -210,6 +248,12 @@ class DBTest {
     }
     result.resize(last_non_zero_offset);
     return result;
+  }
+
+  int CountFiles() {
+    std::vector<std::string> files;
+    env_->GetChildren(dbname_, &files);
+    return static_cast<int>(files.size());
   }
 
   uint64_t Size(const Slice& start, const Slice& limit) {
@@ -1048,6 +1092,49 @@ TEST(DBTest, OverlapInLevel0) {
   ASSERT_EQ("NOT_FOUND", Get("600"));
 }
 
+TEST(DBTest, L0_CompactionBug_Issue44_a) {
+ Reopen();
+ ASSERT_OK(Put("b", "v"));
+ Reopen();
+ ASSERT_OK(Delete("b"));
+ ASSERT_OK(Delete("a"));
+ Reopen();
+ ASSERT_OK(Delete("a"));
+ Reopen();
+ ASSERT_OK(Put("a", "v"));
+ Reopen();
+ Reopen();
+ ASSERT_EQ("(a->v)", Contents());
+ env_->SleepForMicroseconds(1000000);  // Wait for compaction to finish
+ ASSERT_EQ("(a->v)", Contents());
+}
+
+TEST(DBTest, L0_CompactionBug_Issue44_b) {
+ Reopen();
+ Put("","");
+ Reopen();
+ Delete("e");
+ Put("","");
+ Reopen();
+ Put("c", "cv");
+ Reopen();
+ Put("","");
+ Reopen();
+ Put("","");
+ env_->SleepForMicroseconds(1000000);  // Wait for compaction to finish
+ Reopen();
+ Put("d","dv");
+ Reopen();
+ Put("","");
+ Reopen();
+ Delete("d");
+ Delete("b");
+ Reopen();
+ ASSERT_EQ("(->)(c->cv)", Contents());
+ env_->SleepForMicroseconds(1000000);  // Wait for compaction to finish
+ ASSERT_EQ("(->)(c->cv)", Contents());
+}
+
 TEST(DBTest, ComparatorCheck) {
   class NewComparator : public Comparator {
    public:
@@ -1069,6 +1156,58 @@ TEST(DBTest, ComparatorCheck) {
   ASSERT_TRUE(!s.ok());
   ASSERT_TRUE(s.ToString().find("comparator") != std::string::npos)
       << s.ToString();
+}
+
+TEST(DBTest, CustomComparator) {
+  class NumberComparator : public Comparator {
+   public:
+    virtual const char* Name() const { return "test.NumberComparator"; }
+    virtual int Compare(const Slice& a, const Slice& b) const {
+      return ToNumber(a) - ToNumber(b);
+    }
+    virtual void FindShortestSeparator(std::string* s, const Slice& l) const {
+      ToNumber(*s);     // Check format
+      ToNumber(l);      // Check format
+    }
+    virtual void FindShortSuccessor(std::string* key) const {
+      ToNumber(*key);   // Check format
+    }
+   private:
+    static int ToNumber(const Slice& x) {
+      // Check that there are no extra characters.
+      ASSERT_TRUE(x.size() >= 2 && x[0] == '[' && x[x.size()-1] == ']')
+          << EscapeString(x);
+      int val;
+      char ignored;
+      ASSERT_TRUE(sscanf(x.ToString().c_str(), "[%i]%c", &val, &ignored) == 1)
+          << EscapeString(x);
+      return val;
+    }
+  };
+  NumberComparator cmp;
+  Options new_options;
+  new_options.create_if_missing = true;
+  new_options.comparator = &cmp;
+  new_options.write_buffer_size = 1000;  // Compact more often
+  DestroyAndReopen(&new_options);
+  ASSERT_OK(Put("[10]", "ten"));
+  ASSERT_OK(Put("[0x14]", "twenty"));
+  for (int i = 0; i < 2; i++) {
+    ASSERT_EQ("ten", Get("[10]"));
+    ASSERT_EQ("ten", Get("[0xa]"));
+    ASSERT_EQ("twenty", Get("[20]"));
+    ASSERT_EQ("twenty", Get("[0x14]"));
+    Compact("[0]", "[9999]");
+  }
+
+  for (int run = 0; run < 2; run++) {
+    for (int i = 0; i < 1000; i++) {
+      char buf[100];
+      snprintf(buf, sizeof(buf), "[%d]", i*10);
+      ASSERT_OK(Put(buf, buf));
+    }
+    Compact("[0]", "[1000000]");
+  }
 }
 
 TEST(DBTest, ManualCompaction) {
@@ -1144,6 +1283,37 @@ TEST(DBTest, DBOpen_Options) {
   db = NULL;
 }
 
+// Check that number of files does not grow when we are out of space
+TEST(DBTest, NoSpace) {
+  Options options;
+  options.env = env_;
+  Reopen(&options);
+
+  ASSERT_OK(Put("foo", "v1"));
+  ASSERT_EQ("v1", Get("foo"));
+  Compact("a", "z");
+  const int num_files = CountFiles();
+  env_->no_space_.Release_Store(env_);   // Force out-of-space errors
+  for (int i = 0; i < 10; i++) {
+    for (int level = 0; level < config::kNumLevels-1; level++) {
+      dbfull()->TEST_CompactRange(level, NULL, NULL);
+    }
+  }
+  env_->no_space_.Release_Store(NULL);
+  ASSERT_LT(CountFiles(), num_files + 5);
+}
+
+TEST(DBTest, FilesDeletedAfterCompaction) {
+  ASSERT_OK(Put("foo", "v2"));
+  Compact("a", "z");
+  const int num_files = CountFiles();
+  for (int i = 0; i < 10; i++) {
+    ASSERT_OK(Put("foo", "v2"));
+    Compact("a", "z");
+  }
+  ASSERT_EQ(CountFiles(), num_files);
+}
+
 // Multi-threaded test:
 namespace {
 
@@ -1165,14 +1335,15 @@ struct MTThread {
 
 static void MTThreadBody(void* arg) {
   MTThread* t = reinterpret_cast<MTThread*>(arg);
+  int id = t->id;
   DB* db = t->state->test->db_;
   uintptr_t counter = 0;
-  fprintf(stderr, "... starting thread %d\n", t->id);
-  Random rnd(1000 + t->id);
+  fprintf(stderr, "... starting thread %d\n", id);
+  Random rnd(1000 + id);
   std::string value;
   char valbuf[1500];
   while (t->state->stop.Acquire_Load() == NULL) {
-    t->state->counter[t->id].Release_Store(reinterpret_cast<void*>(counter));
+    t->state->counter[id].Release_Store(reinterpret_cast<void*>(counter));
 
     int key = rnd.Uniform(kNumKeys);
     char keybuf[20];
@@ -1182,7 +1353,7 @@ static void MTThreadBody(void* arg) {
       // Write values of the form <key, my id, counter>.
       // We add some padding for force compactions.
       snprintf(valbuf, sizeof(valbuf), "%d.%d.%-1000d",
-               key, t->id, static_cast<int>(counter));
+               key, id, static_cast<int>(counter));
       ASSERT_OK(db->Put(WriteOptions(), Slice(keybuf), Slice(valbuf)));
     } else {
       // Read a value and verify that it matches the pattern written above.
@@ -1203,11 +1374,11 @@ static void MTThreadBody(void* arg) {
     }
     counter++;
   }
-  t->state->thread_done[t->id].Release_Store(t);
-  fprintf(stderr, "... stopping thread %d after %d ops\n", t->id, int(counter));
+  t->state->thread_done[id].Release_Store(t);
+  fprintf(stderr, "... stopping thread %d after %d ops\n", id, int(counter));
 }
 
-}
+}  // namespace
 
 TEST(DBTest, MultiThreaded) {
   // Initialize state
@@ -1525,7 +1696,7 @@ void BM_LogAndApply(int iters, int num_base_files) {
           buf, iters, us, ((float)us) / iters);
 }
 
-}
+}  // namespace leveldb
 
 int main(int argc, char** argv) {
   if (argc > 1 && std::string(argv[1]) == "--benchmark") {
