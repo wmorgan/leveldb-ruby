@@ -6,11 +6,17 @@
 
 static VALUE m_leveldb;
 static VALUE c_db;
+static VALUE c_iter;
 static VALUE c_batch;
 static VALUE c_error;
 static VALUE k_fill;
 static VALUE k_verify;
 static VALUE k_sync;
+static VALUE k_from;
+static VALUE k_to;
+static VALUE k_reversed;
+static VALUE k_class;
+static VALUE k_name;
 static ID to_s;
 static leveldb::ReadOptions uncached_read_options;
 
@@ -185,69 +191,192 @@ static VALUE db_size(VALUE self) {
   return INT2NUM(count);
 }
 
-static VALUE db_iterate(VALUE self, VALUE key_from, VALUE key_to, bool reversed) {
-  bound_db* db;
-  Data_Get_Struct(self, bound_db, db);
-  leveldb::Iterator* it = db->db->NewIterator(uncached_read_options);
+static VALUE db_init(VALUE self, VALUE v_pathname) {
+  rb_iv_set(self, "@pathname", v_pathname);
+  return self;
+}
+
+typedef struct current_iteration {
+  leveldb::Iterator* iterator;
+  bool passed_limit;
+  bool check_limit;
+  bool reversed;
+  int checked_valid; // 0 = unchecked, 1 = valid, -1 = invalid
+  std::string key_to_str;
+  leveldb::Slice current_key;
+} current_iteration;
+
+static void current_iteration_free(current_iteration* iter) {
+  delete iter;
+}
+
+static VALUE iter_make(VALUE klass, VALUE db, VALUE options) {
+  if(c_db != rb_funcall(db, k_class, 0)) {
+    rb_raise(rb_eArgError, "db Must be a LevelDB::DB");
+  }
+
+  bound_db* b_db;
+  Data_Get_Struct(db, bound_db, b_db);
+
+  current_iteration* iter = new current_iteration;
+  iter->passed_limit = false;
+  iter->check_limit = false;
+  iter->checked_valid = 0;
+  iter->iterator = b_db->db->NewIterator(uncached_read_options);
+
+  VALUE o_iter = Data_Wrap_Struct(klass, NULL, current_iteration_free, iter);
+
+  VALUE argv[2];
+  argv[0] = db;
+  argv[1] = options;
+  rb_obj_call_init(o_iter, 2, argv);
+
+  return o_iter;
+}
+
+static VALUE iter_init(VALUE self, VALUE db, VALUE options) {
+  if(c_db != rb_funcall(db, k_class, 0)) {
+    rb_raise(rb_eArgError, "db Must be a LevelDB::DB");
+  }
+
+  rb_iv_set(self, "@db", db);
+  current_iteration* iter;
+  Data_Get_Struct(self, current_iteration, iter);
+
+  VALUE key_from;
+  VALUE key_to;
+
+  if(!NIL_P(options)) {
+    Check_Type(options, T_HASH);
+    key_from = rb_hash_aref(options, k_from);
+    key_to = rb_hash_aref(options, k_to);
+
+    if(RTEST(key_to)) {
+      iter->check_limit = true;
+      iter->key_to_str = RUBY_STRING_TO_SLICE(rb_funcall(key_to, to_s, 0)).ToString();
+    }
+
+    rb_iv_set(self, "@from", key_from);
+    rb_iv_set(self, "@to", key_to);
+    if(NIL_P(rb_hash_aref(options, k_reversed))) {
+      iter->reversed = false;
+      rb_iv_set(self, "@reversed", false);
+    } else {
+      iter->reversed = true;
+      rb_iv_set(self, "@reversed", true);
+    }
+  }
 
   if(RTEST(key_from)) {
-    it->Seek(RUBY_STRING_TO_SLICE(rb_funcall(key_from, to_s, 0)));
+    iter->iterator->Seek(RUBY_STRING_TO_SLICE(rb_funcall(key_from, to_s, 0)));
   } else {
-    if(reversed) {
-      it->SeekToLast();
+    if(iter->reversed) {
+      iter->iterator->SeekToLast();
     } else {
-      it->SeekToFirst();
+      iter->iterator->SeekToFirst();
     }
   }
-
-  bool passed_limit = false;
-  bool check_limit = RTEST(key_to);
-  std::string key_to_str;
-
-  if(check_limit)
-    key_to_str = RUBY_STRING_TO_SLICE(rb_funcall(key_to, to_s, 0)).ToString();
-
-  while(!passed_limit && it->Valid()) {
-    leveldb::Slice key_sl = it->key();
-
-    if(check_limit &&
-        (reversed ?
-          (key_sl.ToString() < key_to_str) :
-          (key_sl.ToString() > key_to_str))) {
-      passed_limit = true;
-    } else {
-      VALUE key = SLICE_TO_RUBY_STRING(key_sl);
-      VALUE value = SLICE_TO_RUBY_STRING(it->value());
-      VALUE ary = rb_ary_new2(2);
-      rb_ary_push(ary, key);
-      rb_ary_push(ary, value);
-      rb_yield(ary);
-      reversed ? it->Prev() : it->Next();
-    }
-  }
-
-  RAISE_ON_ERROR(it->status());
-  delete it;
 
   return self;
 }
 
-static VALUE db_each(int argc, VALUE* argv, VALUE self) {
-  VALUE key_from, key_to;
-  rb_scan_args(argc, argv, "02", &key_from, &key_to);
+static bool iter_valid(current_iteration* iter) {
+  if(iter->checked_valid == 0) {
+    if(iter->passed_limit) {
+      iter->checked_valid = -2;
+    } else {
+      if(iter->iterator->Valid()) {
+        iter->current_key = iter->iterator->key();
 
-  return db_iterate(self, key_from, key_to, false);
+        if(iter->check_limit &&
+            (iter->reversed ?
+              (iter->current_key.ToString() < iter->key_to_str) :
+              (iter->current_key.ToString() > iter->key_to_str))) {
+          iter->passed_limit = true;
+          iter->checked_valid = -2;
+        } else {
+          iter->checked_valid = 1;
+        }
+
+      } else {
+        iter->checked_valid = -1;
+      }
+    }
+  }
+
+  if(iter->checked_valid == 1)
+    return true;
+  else
+    return false;
 }
 
-static VALUE db_reverse_each(int argc, VALUE* argv, VALUE self) {
-  VALUE key_from, key_to;
-  rb_scan_args(argc, argv, "02", &key_from, &key_to);
-
-  return db_iterate(self, key_from, key_to, true);
+static VALUE iter_invalid_reason(VALUE self) {
+  current_iteration* iter;
+  Data_Get_Struct(self, current_iteration, iter);
+  if(iter_valid(iter)) {
+    return Qnil;
+  } else {
+    return INT2FIX(iter->checked_valid);
+  }
 }
 
-static VALUE db_init(VALUE self, VALUE v_pathname) {
-  rb_iv_set(self, "@pathname", v_pathname);
+static VALUE iter_next_value(current_iteration* iter) {
+  VALUE arr = rb_ary_new2(2);
+  rb_ary_push(arr, SLICE_TO_RUBY_STRING(iter->current_key));
+  rb_ary_push(arr, SLICE_TO_RUBY_STRING(iter->iterator->value()));
+}
+
+static void iter_scan_iterator(current_iteration* iter) {
+  if(iter->reversed)
+    iter->iterator->Prev();
+  else
+    iter->iterator->Next();
+  iter->checked_valid = 0;
+}
+
+static VALUE iter_peek(VALUE self) {
+  current_iteration* iter;
+  Data_Get_Struct(self, current_iteration, iter);
+  if(iter_valid(iter)) {
+    return iter_next_value(iter);
+  } else {
+    return Qnil;
+  }
+}
+
+static VALUE iter_scan(VALUE self) {
+  current_iteration* iter;
+  Data_Get_Struct(self, current_iteration, iter);
+  if(iter_valid(iter))
+    iter_scan_iterator(iter);
+  return Qnil;
+}
+
+static VALUE iter_next(VALUE self) {
+  current_iteration* iter;
+  Data_Get_Struct(self, current_iteration, iter);
+
+  VALUE arr = Qnil;
+
+  if(iter_valid(iter)) {
+    arr = iter_next_value(iter);
+    iter_scan_iterator(iter);
+  }
+
+  return arr;
+}
+
+static VALUE iter_each(VALUE self) {
+  current_iteration* iter;
+  Data_Get_Struct(self, current_iteration, iter);
+
+  while(iter_valid(iter)) {
+    rb_yield(iter_next_value(iter));
+    iter_scan_iterator(iter);
+  }
+
+  RAISE_ON_ERROR(iter->iterator->status());
+  delete iter->iterator;
   return self;
 }
 
@@ -313,6 +442,11 @@ void Init_leveldb() {
   k_fill = ID2SYM(rb_intern("fill_cache"));
   k_verify = ID2SYM(rb_intern("verify_checksums"));
   k_sync = ID2SYM(rb_intern("sync"));
+  k_from = ID2SYM(rb_intern("from"));
+  k_to = ID2SYM(rb_intern("to"));
+  k_reversed = ID2SYM(rb_intern("reversed"));
+  k_class = rb_intern("class");
+  k_name = rb_intern("name");
   to_s = rb_intern("to_s");
   uncached_read_options = leveldb::ReadOptions();
   uncached_read_options.fill_cache = false;
@@ -328,9 +462,16 @@ void Init_leveldb() {
   rb_define_method(c_db, "exists?", (VALUE (*)(...))db_exists, 1);
   rb_define_method(c_db, "close", (VALUE (*)(...))db_close, 0);
   rb_define_method(c_db, "size", (VALUE (*)(...))db_size, 0);
-  rb_define_method(c_db, "each", (VALUE (*)(...))db_each, -1);
-  rb_define_method(c_db, "reverse_each", (VALUE (*)(...))db_reverse_each, -1);
   rb_define_method(c_db, "batch", (VALUE (*)(...))db_batch, -1);
+
+  c_iter = rb_define_class_under(m_leveldb, "Iterator", rb_cObject);
+  rb_define_singleton_method(c_iter, "make", (VALUE (*)(...))iter_make, 2);
+  rb_define_method(c_iter, "initialize", (VALUE (*)(...))iter_init, 2);
+  rb_define_method(c_iter, "each", (VALUE (*)(...))iter_each, 0);
+  rb_define_method(c_iter, "next", (VALUE (*)(...))iter_next, 0);
+  rb_define_method(c_iter, "scan", (VALUE (*)(...))iter_scan, 0);
+  rb_define_method(c_iter, "peek", (VALUE (*)(...))iter_peek, 0);
+  rb_define_method(c_iter, "invalid_reason", (VALUE (*)(...))iter_invalid_reason, 0);
 
   c_batch = rb_define_class_under(m_leveldb, "WriteBatch", rb_cObject);
   rb_define_singleton_method(c_batch, "make", (VALUE (*)(...))batch_make, 0);
