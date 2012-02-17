@@ -31,6 +31,7 @@ class DB
   end
 
   attr_reader :pathname
+  attr_reader :options
 
   alias :includes? :exists?
   alias :contains? :exists?
