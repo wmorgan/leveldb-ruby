@@ -1,9 +1,12 @@
 #include <ruby.h>
+#include <memory>
 
 #include "leveldb/db.h"
 #include "leveldb/cache.h"
 #include "leveldb/slice.h"
 #include "leveldb/write_batch.h"
+
+using namespace std;
 
 static VALUE m_leveldb;
 static VALUE c_db;
@@ -88,86 +91,169 @@ static bool hash_val_test(VALUE h, VALUE key) {
 }
 
 static void set_db_option(VALUE o_options, VALUE opts) {
-  Check_Type(opts, T_HASH);
+  if(!NIL_P(o_options)) {
+    Check_Type(opts, T_HASH);
 
-  bound_db_options* db_options;
-  Data_Get_Struct(o_options, bound_db_options, db_options);
-  leveldb::Options* options = db_options->options;
+    bound_db_options* db_options;
+    Data_Get_Struct(o_options, bound_db_options, db_options);
+    leveldb::Options* options = db_options->options;
 
-  if(hash_val_test(opts, k_create_if_missing)) {
-    options->create_if_missing = true;
-  }
-
-  if(hash_val_test(opts, k_error_if_exists)) {
-    options->error_if_exists = true;
-  }
-
-  VALUE v;
-
-  v = rb_hash_aref(opts, k_paranoid_checks);
-  if(!NIL_P(v)) {
-    if(Qtrue == v) {
-      options->paranoid_checks = true;
-    } else {
-      options->paranoid_checks = false;
+    if(hash_val_test(opts, k_create_if_missing)) {
+      options->create_if_missing = true;
     }
-  }
 
-  v = rb_hash_aref(opts, k_write_buffer_size);
-  if(FIXNUM_P(v)) {
-    options->write_buffer_size = NUM2UINT(v);
-  }
+    if(hash_val_test(opts, k_error_if_exists)) {
+      options->error_if_exists = true;
+    }
 
-  v = rb_hash_aref(opts, k_max_open_files);
-  if(FIXNUM_P(v)) {
-    options->max_open_files = NUM2INT(v);
-  }
+    VALUE v;
 
-  v = rb_hash_aref(opts, k_block_cache_size);
-  if(FIXNUM_P(v)) {
-    options->block_cache = leveldb::NewLRUCache(NUM2INT(v));
-    rb_iv_set(o_options, "@block_cache_size", v);
-  }
+    v = rb_hash_aref(opts, k_paranoid_checks);
+    if(!NIL_P(v)) {
+      if(Qtrue == v) {
+        options->paranoid_checks = true;
+      } else {
+        options->paranoid_checks = false;
+      }
+    }
 
-  v = rb_hash_aref(opts, k_block_size);
-  if(FIXNUM_P(v)) {
-    options->block_size = NUM2UINT(v);
-  }
+    v = rb_hash_aref(opts, k_write_buffer_size);
+    if(FIXNUM_P(v)) {
+      options->write_buffer_size = NUM2UINT(v);
+    }
 
-  v = rb_hash_aref(opts, k_block_restart_interval);
-  if(FIXNUM_P(v)) {
-    options->block_restart_interval = NUM2INT(v);
-  }
+    v = rb_hash_aref(opts, k_max_open_files);
+    if(FIXNUM_P(v)) {
+      options->max_open_files = NUM2INT(v);
+    }
 
-  v = rb_hash_aref(opts, k_compression);
-  if(FIXNUM_P(v)) {
-    switch(NUM2INT(v)) {
-    case 0x0:
-      options->compression = leveldb::kNoCompression;
-      break;
+    v = rb_hash_aref(opts, k_block_cache_size);
+    if(FIXNUM_P(v)) {
+      options->block_cache = leveldb::NewLRUCache(NUM2INT(v));
+      rb_iv_set(o_options, "@block_cache_size", v);
+    }
 
-    case 0x1:
-      options->compression = leveldb::kSnappyCompression;
-      break;
+    v = rb_hash_aref(opts, k_block_size);
+    if(FIXNUM_P(v)) {
+      options->block_size = NUM2UINT(v);
+    }
+
+    v = rb_hash_aref(opts, k_block_restart_interval);
+    if(FIXNUM_P(v)) {
+      options->block_restart_interval = NUM2INT(v);
+    }
+
+    v = rb_hash_aref(opts, k_compression);
+    if(FIXNUM_P(v)) {
+      switch(NUM2INT(v)) {
+      case 0x0:
+        options->compression = leveldb::kNoCompression;
+        break;
+
+      case 0x1:
+        options->compression = leveldb::kSnappyCompression;
+        break;
+      }
     }
   }
 }
 
-static VALUE db_make(VALUE klass, VALUE v_pathname, VALUE v_create_if_necessary, VALUE v_break_if_exists) {
+/*
+ * call-seq:
+ *   make(pathname, options)
+ *
+ * open level-db database
+ *
+ * pathname path for database
+ *
+ * [options[ :create_if_missing ]] create if database doesn't exit
+ *
+ * [options[ :error_if_exists ]] raise error if database exists
+ *
+ * [options[ :paranoid_checks ]] If true, the implementation will do aggressive checking of the
+ *                               data it is processing and will stop early if it detects any
+ *                               errors.  This may have unforeseen ramifications: for example, a
+ *                               corruption of one DB entry may cause a large number of entries to
+ *                               become unreadable or for the entire DB to become unopenable.
+ *                               
+ *                               Default: false
+ * [options[ :write_buffer_size ]] Amount of data to build up in memory (backed by an unsorted log
+ *                                 on disk) before converting to a sorted on-disk file.
+ *                                 
+ *                                 Larger values increase performance, especially during bulk
+ *                                 loads.
+ *                                 Up to two write buffers may be held in memory at the same time,
+ *                                 so you may wish to adjust this parameter to control memory
+ *                                 usage.
+ *                                 Also, a larger write buffer will result in a longer recovery
+ *                                 time the next time the database is opened.
+ *                                 
+ *                                 Default: 4MB
+ * [options[ :max_open_files ]] Number of open files that can be used by the DB.  You may need to
+ *                              increase this if your database has a large working set (budget
+ *                              one open file per 2MB of working set).
+ *                              
+ *                              Default: 1000
+ * [options[ :block_cache_size ]] Control over blocks (user data is stored in a set of blocks,
+ *                                and a block is the unit of reading from disk).
+ *                                
+ *                                If non nil, use the specified cache size.
+ *                                If nil, leveldb will automatically create and use an 8MB
+ *                                internal cache.
+ *                                
+ *                                Default: nil
+ * [options[ :block_size ]] Approximate size of user data packed per block.  Note that the
+ *                          block size specified here corresponds to uncompressed data.  The
+ *                          actual size of the unit read from disk may be smaller if
+ *                          compression is enabled.  This parameter can be changed dynamically.
+ *                          
+ *                          Default: 4K
+ * [options[ :block_restart_interval ]] Number of keys between restart points for delta
+ *                                      encoding of keys.
+ *                                      This parameter can be changed dynamically.
+ *                                      Most clients should leave this parameter alone.
+ *                                      
+ *                                      Default: 16
+ * [options[ :compression ]] LevelDB::CompressionType::SnappyCompression or
+ *                           LevelDB::CompressionType::NoCompression.
+ *                           
+ *                           Compress blocks using the specified compression algorithm.
+ *                           This parameter can be changed dynamically.
+ *
+ *                           Default: LevelDB::CompressionType::SnappyCompression,
+ *                           which gives lightweight but fast compression.
+ *                           
+ *                           Typical speeds of SnappyCompression on an Intel(R) Core(TM)2 2.4GHz:
+ *                               ~200-500MB/s compression
+ *                               ~400-800MB/s decompression
+ *                           Note that these speeds are significantly faster than most
+ *                           persistent storage speeds, and therefore it is typically never
+ *                           worth switching to NoCompression.  Even if the input data is
+ *                           incompressible, the SnappyCompression implementation will
+ *                           efficiently detect that and will switch to uncompressed mode.
+ * [return] LevelDB::DB instance
+ */
+static VALUE db_make(int argc, VALUE* argv, VALUE self) {
+  VALUE v_pathname, v_options;
+  rb_scan_args(argc, argv, "11", &v_pathname, &v_options);
   Check_Type(v_pathname, T_STRING);
 
-  bound_db* db = new bound_db;
+  auto_ptr<bound_db> db(new bound_db);
   std::string pathname = std::string((char*)RSTRING_PTR(v_pathname));
 
-  leveldb::Options options;
-  if(RTEST(v_create_if_necessary)) options.create_if_missing = true;
-  if(RTEST(v_break_if_exists)) options.error_if_exists = true;
-  leveldb::Status status = leveldb::DB::Open(options, pathname, &db->db);
+  auto_ptr<bound_db_options> db_options(new bound_db_options);
+  db_options->options = new leveldb::Options;
+  leveldb::Options* options = db_options->options;
+  VALUE o_options = Data_Wrap_Struct(c_db_options, NULL, db_options_free, db_options.release());
+  set_db_option(o_options, v_options);
+
+  leveldb::Status status = leveldb::DB::Open(*(options), pathname, &db->db);
+  VALUE o_db = Data_Wrap_Struct(self, NULL, db_free, db.release());
   RAISE_ON_ERROR(status);
 
-  VALUE o_db = Data_Wrap_Struct(klass, NULL, db_free, db);
-  VALUE argv[1] = { v_pathname };
-  rb_obj_call_init(o_db, 1, argv);
+  rb_iv_set(o_db, "@options", o_options);
+  VALUE init_argv[1] = { v_pathname };
+  rb_obj_call_init(o_db, 1, init_argv);
 
   return o_db;
 }
@@ -618,7 +704,7 @@ void Init_leveldb() {
   m_leveldb = rb_define_module("LevelDB");
 
   c_db = rb_define_class_under(m_leveldb, "DB", rb_cObject);
-  rb_define_singleton_method(c_db, "make", RUBY_METHOD_FUNC(db_make), 3);
+  rb_define_singleton_method(c_db, "make", RUBY_METHOD_FUNC(db_make), -1);
   rb_define_method(c_db, "initialize", RUBY_METHOD_FUNC(db_init), 1);
   rb_define_method(c_db, "get", RUBY_METHOD_FUNC(db_get), -1);
   rb_define_method(c_db, "delete", RUBY_METHOD_FUNC(db_delete), -1);
