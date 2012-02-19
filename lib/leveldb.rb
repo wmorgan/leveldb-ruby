@@ -6,9 +6,10 @@ class DB
   class << self
     ## Loads or creates a LevelDB database as necessary, stored on disk at
     ## +pathname+.
-    def new pathname
-      make(path_string(pathname),
-           { :create_if_missing => true, :error_if_exists => false })
+    def new(pathname, options = {})
+      options[:create_if_missing] = true
+      options[:error_if_exists] = false
+      make(path_string(pathname), options)
     end
 
     ## Creates a new LevelDB database stored on disk at +pathname+. Throws an
@@ -76,5 +77,14 @@ class WriteBatch
   class << self
     private :new
   end
+end
+
+class Options
+  attr_reader :block_cache_size
+end
+
+module CompressionType
+  NoCompression     = 0x0
+  SnappyCompression = 0x1
 end
 end # module LevelDB

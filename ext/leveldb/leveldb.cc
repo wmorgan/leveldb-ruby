@@ -677,6 +677,48 @@ static VALUE db_batch(int argc, VALUE* argv, VALUE self) {
   return Qtrue;
 }
 
+// -------------------------------------------------------
+// db_options methods
+static VALUE db_options_paranoid_checks(VALUE self) {
+  bound_db_options* db_options;
+  Data_Get_Struct(self, bound_db_options, db_options);
+  if(db_options->options->paranoid_checks) {
+    return Qtrue;
+  } else {
+    return Qfalse;
+  }
+}
+
+static VALUE db_options_write_buffer_size(VALUE self) {
+  bound_db_options* db_options;
+  Data_Get_Struct(self, bound_db_options, db_options);
+  return UINT2NUM(db_options->options->write_buffer_size);
+}
+
+static VALUE db_options_max_open_files(VALUE self) {
+  bound_db_options* db_options;
+  Data_Get_Struct(self, bound_db_options, db_options);
+  return INT2NUM(db_options->options->max_open_files);
+}
+
+static VALUE db_options_block_size(VALUE self) {
+  bound_db_options* db_options;
+  Data_Get_Struct(self, bound_db_options, db_options);
+  return UINT2NUM(db_options->options->block_size);
+}
+
+static VALUE db_options_block_restart_interval(VALUE self) {
+  bound_db_options* db_options;
+  Data_Get_Struct(self, bound_db_options, db_options);
+  return INT2NUM(db_options->options->block_restart_interval);
+}
+
+static VALUE db_options_compression(VALUE self) {
+  bound_db_options* db_options;
+  Data_Get_Struct(self, bound_db_options, db_options);
+  return INT2NUM(db_options->options->compression);
+}
+
 extern "C" {
 void Init_leveldb() {
   k_fill = ID2SYM(rb_intern("fill_cache"));
@@ -694,8 +736,8 @@ void Init_leveldb() {
   k_block_cache_size = ID2SYM(rb_intern("block_cache_size"));
   k_block_size = ID2SYM(rb_intern("block_size"));
   k_block_restart_interval = ID2SYM(rb_intern("block_restart_interval"));
-  k_compression = ID2SYM(rb_intern("k_compression"));
-  k_max_open_files = ID2SYM(rb_intern("k_max_open_files"));
+  k_compression = ID2SYM(rb_intern("compression"));
+  k_max_open_files = ID2SYM(rb_intern("max_open_files"));
 
   to_s = rb_intern("to_s");
   uncached_read_options = leveldb::ReadOptions();
@@ -729,18 +771,18 @@ void Init_leveldb() {
   rb_define_method(c_batch, "delete", RUBY_METHOD_FUNC(batch_delete), 1);
 
   c_db_options = rb_define_class_under(m_leveldb, "Options", rb_cObject);
-  // rb_define_method(c_db_options, "paranoid_checks",
-  //                  RUBY_METHOD_FUNC(db_options_paranoid_checks), 0);
-  // rb_define_method(c_db_options, "write_buffer_size",
-  //                  RUBY_METHOD_FUNC(db_options_write_buffer_size), 0);
-  // rb_define_method(c_db_options, "max_open_files",
-  //                  RUBY_METHOD_FUNC(db_options_max_open_files), 0);
-  // rb_define_method(c_db_options, "block_size",
-  //                  RUBY_METHOD_FUNC(db_options_block_size), 0);
-  // rb_define_method(c_db_options, "block_restart_interval",
-  //                  RUBY_METHOD_FUNC(db_options_block_restart_interval), 0);
-  // rb_define_method(c_db_options, "compression",
-  //                  RUBY_METHOD_FUNC(db_options_compression), 0);
+  rb_define_method(c_db_options, "paranoid_checks",
+                   RUBY_METHOD_FUNC(db_options_paranoid_checks), 0);
+  rb_define_method(c_db_options, "write_buffer_size",
+                   RUBY_METHOD_FUNC(db_options_write_buffer_size), 0);
+  rb_define_method(c_db_options, "max_open_files",
+                   RUBY_METHOD_FUNC(db_options_max_open_files), 0);
+  rb_define_method(c_db_options, "block_size",
+                   RUBY_METHOD_FUNC(db_options_block_size), 0);
+  rb_define_method(c_db_options, "block_restart_interval",
+                   RUBY_METHOD_FUNC(db_options_block_restart_interval), 0);
+  rb_define_method(c_db_options, "compression",
+                   RUBY_METHOD_FUNC(db_options_compression), 0);
 
   c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
 }
