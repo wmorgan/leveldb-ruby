@@ -289,8 +289,8 @@ static VALUE iter_init(VALUE self, VALUE db, VALUE options) {
   current_iteration* iter;
   Data_Get_Struct(self, current_iteration, iter);
 
-  VALUE key_from;
-  VALUE key_to;
+  VALUE key_from = Qnil;
+  VALUE key_to = Qnil;
 
   if(!NIL_P(options)) {
     Check_Type(options, T_HASH);
