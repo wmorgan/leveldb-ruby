@@ -452,7 +452,7 @@ static void current_iteration_free(current_iteration* iter) {
 
 static VALUE iter_make(VALUE klass, VALUE db, VALUE options) {
   if(c_db != rb_funcall(db, k_class, 0)) {
-    rb_raise(rb_eArgError, "db Must be a LevelDB::DB");
+    rb_raise(rb_eArgError, "db must be a LevelDB::DB");
   }
 
   bound_db* b_db;
@@ -476,15 +476,15 @@ static VALUE iter_make(VALUE klass, VALUE db, VALUE options) {
 
 static VALUE iter_init(VALUE self, VALUE db, VALUE options) {
   if(c_db != rb_funcall(db, k_class, 0)) {
-    rb_raise(rb_eArgError, "db Must be a LevelDB::DB");
+    rb_raise(rb_eArgError, "db must be a LevelDB::DB");
   }
 
   rb_iv_set(self, "@db", db);
   current_iteration* iter;
   Data_Get_Struct(self, current_iteration, iter);
 
-  VALUE key_from;
-  VALUE key_to;
+  VALUE key_from = Qnil;
+  VALUE key_to = Qnil;
 
   if(!NIL_P(options)) {
     Check_Type(options, T_HASH);
