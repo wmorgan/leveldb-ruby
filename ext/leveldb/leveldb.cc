@@ -454,29 +454,29 @@ void Init_leveldb() {
   m_leveldb = rb_define_module("LevelDB");
 
   c_db = rb_define_class_under(m_leveldb, "DB", rb_cObject);
-  rb_define_singleton_method(c_db, "make", (VALUE (*)(...))db_make, 3);
-  rb_define_method(c_db, "initialize", (VALUE (*)(...))db_init, 1);
-  rb_define_method(c_db, "get", (VALUE (*)(...))db_get, -1);
-  rb_define_method(c_db, "delete", (VALUE (*)(...))db_delete, -1);
-  rb_define_method(c_db, "put", (VALUE (*)(...))db_put, -1);
-  rb_define_method(c_db, "exists?", (VALUE (*)(...))db_exists, 1);
-  rb_define_method(c_db, "close", (VALUE (*)(...))db_close, 0);
-  rb_define_method(c_db, "size", (VALUE (*)(...))db_size, 0);
-  rb_define_method(c_db, "batch", (VALUE (*)(...))db_batch, -1);
+  rb_define_singleton_method(c_db, "make", RUBY_METHOD_FUNC(db_make), 3);
+  rb_define_method(c_db, "initialize", RUBY_METHOD_FUNC(db_init), 1);
+  rb_define_method(c_db, "get", RUBY_METHOD_FUNC(db_get), -1);
+  rb_define_method(c_db, "delete", RUBY_METHOD_FUNC(db_delete), -1);
+  rb_define_method(c_db, "put", RUBY_METHOD_FUNC(db_put), -1);
+  rb_define_method(c_db, "exists?", RUBY_METHOD_FUNC(db_exists), 1);
+  rb_define_method(c_db, "close", RUBY_METHOD_FUNC(db_close), 0);
+  rb_define_method(c_db, "size", RUBY_METHOD_FUNC(db_size), 0);
+  rb_define_method(c_db, "batch", RUBY_METHOD_FUNC(db_batch), -1);
 
   c_iter = rb_define_class_under(m_leveldb, "Iterator", rb_cObject);
-  rb_define_singleton_method(c_iter, "make", (VALUE (*)(...))iter_make, 2);
-  rb_define_method(c_iter, "initialize", (VALUE (*)(...))iter_init, 2);
-  rb_define_method(c_iter, "each", (VALUE (*)(...))iter_each, 0);
-  rb_define_method(c_iter, "next", (VALUE (*)(...))iter_next, 0);
-  rb_define_method(c_iter, "scan", (VALUE (*)(...))iter_scan, 0);
-  rb_define_method(c_iter, "peek", (VALUE (*)(...))iter_peek, 0);
-  rb_define_method(c_iter, "invalid_reason", (VALUE (*)(...))iter_invalid_reason, 0);
+  rb_define_singleton_method(c_iter, "make", RUBY_METHOD_FUNC(iter_make), 2);
+  rb_define_method(c_iter, "initialize", RUBY_METHOD_FUNC(iter_init), 2);
+  rb_define_method(c_iter, "each", RUBY_METHOD_FUNC(iter_each), 0);
+  rb_define_method(c_iter, "next", RUBY_METHOD_FUNC(iter_next), 0);
+  rb_define_method(c_iter, "scan", RUBY_METHOD_FUNC(iter_scan), 0);
+  rb_define_method(c_iter, "peek", RUBY_METHOD_FUNC(iter_peek), 0);
+  rb_define_method(c_iter, "invalid_reason", RUBY_METHOD_FUNC(iter_invalid_reason), 0);
 
   c_batch = rb_define_class_under(m_leveldb, "WriteBatch", rb_cObject);
-  rb_define_singleton_method(c_batch, "make", (VALUE (*)(...))batch_make, 0);
-  rb_define_method(c_batch, "put", (VALUE (*)(...))batch_put, 2);
-  rb_define_method(c_batch, "delete", (VALUE (*)(...))batch_delete, 1);
+  rb_define_singleton_method(c_batch, "make", RUBY_METHOD_FUNC(batch_make), 0);
+  rb_define_method(c_batch, "put", RUBY_METHOD_FUNC(batch_put), 2);
+  rb_define_method(c_batch, "delete", RUBY_METHOD_FUNC(batch_delete), 1);
 
   c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
 }
