@@ -114,13 +114,13 @@ static leveldb::WriteOptions parse_write_options(VALUE options) {
  * [key]  key you want to get
  * [options[ :fill_cache ]] Should the data read for this iteration be cached in memory?
  *                          Callers may wish to set this field to false for bulk scans.
- *                          
+ *
  *                          true or false
- *                          
+ *
  *                          Default: true
  * [options[ :verify_checksums ]] If true, all data read from underlying storage will be
  *                                verified against corresponding checksums.
- *                                
+ *
  *                                Default: false
  * [return] value of stored db
  */
@@ -189,17 +189,17 @@ static VALUE db_exists(VALUE self, VALUE v_key) {
  *                    buffer cache (by calling WritableFile::Sync()) before the write
  *                    is considered complete.  If this flag is true, writes will be
  *                    slower.
- *                    
+ *
  *                    If this flag is false, and the machine crashes, some recent
  *                    writes may be lost.  Note that if it is just the process that
  *                    crashes (i.e., the machine does not reboot), no writes will be
  *                    lost even if sync==false.
- *                    
+ *
  *                    In other words, a DB write with sync==false has similar
  *                    crash semantics as the "write()" system call.  A DB write
  *                    with sync==true has similar crash semantics to a "write()"
  *                    system call followed by "fsync()".
- *                    
+ *
  *                    Default: false
  * [return] stored value
  */
@@ -258,7 +258,7 @@ static void current_iteration_free(current_iteration* iter) {
 
 static VALUE iter_make(VALUE klass, VALUE db, VALUE options) {
   if(c_db != rb_funcall(db, k_class, 0)) {
-    rb_raise(rb_eArgError, "db Must be a LevelDB::DB");
+    rb_raise(rb_eArgError, "db must be a LevelDB::DB");
   }
 
   bound_db* b_db;
@@ -282,7 +282,7 @@ static VALUE iter_make(VALUE klass, VALUE db, VALUE options) {
 
 static VALUE iter_init(VALUE self, VALUE db, VALUE options) {
   if(c_db != rb_funcall(db, k_class, 0)) {
-    rb_raise(rb_eArgError, "db Must be a LevelDB::DB");
+    rb_raise(rb_eArgError, "db must be a LevelDB::DB");
   }
 
   rb_iv_set(self, "@db", db);
