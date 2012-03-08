@@ -104,6 +104,26 @@ static leveldb::WriteOptions parse_write_options(VALUE options) {
 #define RUBY_STRING_TO_SLICE(x) leveldb::Slice(RSTRING_PTR(x), RSTRING_LEN(x))
 #define SLICE_TO_RUBY_STRING(x) rb_str_new(x.data(), x.size())
 #define STRING_TO_RUBY_STRING(x) rb_str_new(x.data(), x.size())
+
+/*
+ * call-seq:
+ *   get(key, options = nil)
+ *
+ * get data from db
+ *
+ * [key]  key you want to get
+ * [options[ :fill_cache ]] Should the data read for this iteration be cached in memory?
+ *                          Callers may wish to set this field to false for bulk scans.
+ *
+ *                          true or false
+ *
+ *                          Default: true
+ * [options[ :verify_checksums ]] If true, all data read from underlying storage will be
+ *                                verified against corresponding checksums.
+ *
+ *                                Default: false
+ * [return] value of stored db
+ */
 static VALUE db_get(int argc, VALUE* argv, VALUE self) {
   VALUE v_key, v_options;
   rb_scan_args(argc, argv, "11", &v_key, &v_options);
@@ -157,6 +177,32 @@ static VALUE db_exists(VALUE self, VALUE v_key) {
   return Qtrue;
 }
 
+/*
+ * call-seq:
+ *   put(key, value, options = nil)
+ *
+ * store data into DB
+ *
+ * [key] key you want to store
+ * [value] data you want to store
+ * [options[ :sync ]] If true, the write will be flushed from the operating system
+ *                    buffer cache (by calling WritableFile::Sync()) before the write
+ *                    is considered complete.  If this flag is true, writes will be
+ *                    slower.
+ *
+ *                    If this flag is false, and the machine crashes, some recent
+ *                    writes may be lost.  Note that if it is just the process that
+ *                    crashes (i.e., the machine does not reboot), no writes will be
+ *                    lost even if sync==false.
+ *
+ *                    In other words, a DB write with sync==false has similar
+ *                    crash semantics as the "write()" system call.  A DB write
+ *                    with sync==true has similar crash semantics to a "write()"
+ *                    system call followed by "fsync()".
+ *
+ *                    Default: false
+ * [return] stored value
+ */
 static VALUE db_put(int argc, VALUE* argv, VALUE self) {
   VALUE v_key, v_value, v_options;
 
@@ -212,7 +258,7 @@ static void current_iteration_free(current_iteration* iter) {
 
 static VALUE iter_make(VALUE klass, VALUE db, VALUE options) {
   if(c_db != rb_funcall(db, k_class, 0)) {
-    rb_raise(rb_eArgError, "db Must be a LevelDB::DB");
+    rb_raise(rb_eArgError, "db must be a LevelDB::DB");
   }
 
   bound_db* b_db;
@@ -236,15 +282,15 @@ static VALUE iter_make(VALUE klass, VALUE db, VALUE options) {
 
 static VALUE iter_init(VALUE self, VALUE db, VALUE options) {
   if(c_db != rb_funcall(db, k_class, 0)) {
-    rb_raise(rb_eArgError, "db Must be a LevelDB::DB");
+    rb_raise(rb_eArgError, "db must be a LevelDB::DB");
   }
 
   rb_iv_set(self, "@db", db);
   current_iteration* iter;
   Data_Get_Struct(self, current_iteration, iter);
 
-  VALUE key_from;
-  VALUE key_to;
+  VALUE key_from = Qnil;
+  VALUE key_to = Qnil;
 
   if(!NIL_P(options)) {
     Check_Type(options, T_HASH);
@@ -454,29 +500,29 @@ void Init_leveldb() {
   m_leveldb = rb_define_module("LevelDB");
 
   c_db = rb_define_class_under(m_leveldb, "DB", rb_cObject);
-  rb_define_singleton_method(c_db, "make", (VALUE (*)(...))db_make, 3);
-  rb_define_method(c_db, "initialize", (VALUE (*)(...))db_init, 1);
-  rb_define_method(c_db, "get", (VALUE (*)(...))db_get, -1);
-  rb_define_method(c_db, "delete", (VALUE (*)(...))db_delete, -1);
-  rb_define_method(c_db, "put", (VALUE (*)(...))db_put, -1);
-  rb_define_method(c_db, "exists?", (VALUE (*)(...))db_exists, 1);
-  rb_define_method(c_db, "close", (VALUE (*)(...))db_close, 0);
-  rb_define_method(c_db, "size", (VALUE (*)(...))db_size, 0);
-  rb_define_method(c_db, "batch", (VALUE (*)(...))db_batch, -1);
+  rb_define_singleton_method(c_db, "make", RUBY_METHOD_FUNC(db_make), 3);
+  rb_define_method(c_db, "initialize", RUBY_METHOD_FUNC(db_init), 1);
+  rb_define_method(c_db, "get", RUBY_METHOD_FUNC(db_get), -1);
+  rb_define_method(c_db, "delete", RUBY_METHOD_FUNC(db_delete), -1);
+  rb_define_method(c_db, "put", RUBY_METHOD_FUNC(db_put), -1);
+  rb_define_method(c_db, "exists?", RUBY_METHOD_FUNC(db_exists), 1);
+  rb_define_method(c_db, "close", RUBY_METHOD_FUNC(db_close), 0);
+  rb_define_method(c_db, "size", RUBY_METHOD_FUNC(db_size), 0);
+  rb_define_method(c_db, "batch", RUBY_METHOD_FUNC(db_batch), -1);
 
   c_iter = rb_define_class_under(m_leveldb, "Iterator", rb_cObject);
-  rb_define_singleton_method(c_iter, "make", (VALUE (*)(...))iter_make, 2);
-  rb_define_method(c_iter, "initialize", (VALUE (*)(...))iter_init, 2);
-  rb_define_method(c_iter, "each", (VALUE (*)(...))iter_each, 0);
-  rb_define_method(c_iter, "next", (VALUE (*)(...))iter_next, 0);
-  rb_define_method(c_iter, "scan", (VALUE (*)(...))iter_scan, 0);
-  rb_define_method(c_iter, "peek", (VALUE (*)(...))iter_peek, 0);
-  rb_define_method(c_iter, "invalid_reason", (VALUE (*)(...))iter_invalid_reason, 0);
+  rb_define_singleton_method(c_iter, "make", RUBY_METHOD_FUNC(iter_make), 2);
+  rb_define_method(c_iter, "initialize", RUBY_METHOD_FUNC(iter_init), 2);
+  rb_define_method(c_iter, "each", RUBY_METHOD_FUNC(iter_each), 0);
+  rb_define_method(c_iter, "next", RUBY_METHOD_FUNC(iter_next), 0);
+  rb_define_method(c_iter, "scan", RUBY_METHOD_FUNC(iter_scan), 0);
+  rb_define_method(c_iter, "peek", RUBY_METHOD_FUNC(iter_peek), 0);
+  rb_define_method(c_iter, "invalid_reason", RUBY_METHOD_FUNC(iter_invalid_reason), 0);
 
   c_batch = rb_define_class_under(m_leveldb, "WriteBatch", rb_cObject);
-  rb_define_singleton_method(c_batch, "make", (VALUE (*)(...))batch_make, 0);
-  rb_define_method(c_batch, "put", (VALUE (*)(...))batch_put, 2);
-  rb_define_method(c_batch, "delete", (VALUE (*)(...))batch_delete, 1);
+  rb_define_singleton_method(c_batch, "make", RUBY_METHOD_FUNC(batch_make), 0);
+  rb_define_method(c_batch, "put", RUBY_METHOD_FUNC(batch_put), 2);
+  rb_define_method(c_batch, "delete", RUBY_METHOD_FUNC(batch_delete), 1);
 
   c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
 }
