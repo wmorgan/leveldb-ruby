@@ -370,6 +370,7 @@ static VALUE iter_next_value(current_iteration* iter) {
   VALUE arr = rb_ary_new2(2);
   rb_ary_push(arr, SLICE_TO_RUBY_STRING(iter->current_key));
   rb_ary_push(arr, SLICE_TO_RUBY_STRING(iter->iterator->value()));
+  return arr;
 }
 
 static void iter_scan_iterator(current_iteration* iter) {
