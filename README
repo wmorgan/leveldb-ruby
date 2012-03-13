@@ -1,28 +1,72 @@
-LevelDB Ruby bindings.
+LevelDB is a very fast, persistent, in-process key-value store.
+Read more about it here: http://code.google.com/p/leveldb/.
 
-Do this:
+This gem contains Ruby bindings so that you can use it from your
+Ruby process.
+
+INSTALLATION
 
   gem install leveldb-ruby
 
+SYNOPSIS
 
-And then run this:
-
-  require 'rubygems' # on ruby < 1.9
+  require 'rubygems' # on for ruby 1.8
   require 'leveldb'
 
+  ## make a new database
   db = LevelDB::DB.new "/tmp/asdf"
-  db.put "it", "works"
-  db.get "it"
 
-Only a very few operations are supported right now:
+  ## getting and setting
+  db.put "it", "works"               # => "works"
+  db.get "it"                        # => "works"
 
-  DB.new    # creates or loads as necessary
-  DB.create # dies if it already exists
-  DB.load   # dies unless it alread exists
+  db["hello"] = "there"              # => "there"
+  db["hello"]                        # => "there"
 
-  DB#get    # alias: DB#[]
-  DB#put    # alias: DB#[]=
-  DB#delete
+  db["nonexistent"]                  # => nil
 
-  DB#each
-  ... and all the enumerable methods
+  ## testing
+  db.includes? "hello"               # => true
+  db.contains? "hello"               # => true
+
+  ## keys and values
+  db.keys                            # => "it", "hello"
+  db.values                          # => "there", "works"
+
+  ## iterating
+  db.each { |k, v| ... }
+  db.map { |k, v| ... }
+  db.each                            # => LevelDB::Iterator
+
+  ## ranges
+  db.each(:from => "a", :to => "b")  # => LevelDB::Iterator
+  db.each(:from => "a", :to => "b").
+    map { |k, v| ... }
+  # etc...
+
+  ## deleting
+  db.delete "hello"       # => "there"
+  db.delete "hello"       # => nil
+
+LICENSE
+
+  Leveldb-ruby is available for your use under the terms of
+  the New BSD License. See the LICENSE file for details.
+
+CREDIT
+
+  This gem brought to you by William Morgan <http://masanjin.net/>
+  and the following honorable contributors:
+  - Rick Olson
+  - byplayer
+  - Yukio Goto
+  - Johannes Holzfuß
+  - Steve Wilhelm
+  - Gabriel Ebner
+  and by users like you.
+
+BUGS
+
+  Please report bugs to https://github.com/wmorgan/leveldb-ruby/issues.
+
+
