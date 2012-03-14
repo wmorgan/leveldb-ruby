@@ -85,11 +85,6 @@ static void db_options_free(bound_db_options* options) {
   delete options;
 }
 
-static bool hash_val_test(VALUE h, VALUE key) {
-  VALUE v = rb_hash_aref(h, key);
-  return RTEST(v);
-}
-
 static void set_db_option(VALUE o_options, VALUE opts) {
   if(!NIL_P(o_options)) {
     Check_Type(opts, T_HASH);
@@ -98,12 +93,16 @@ static void set_db_option(VALUE o_options, VALUE opts) {
     Data_Get_Struct(o_options, bound_db_options, db_options);
     leveldb::Options* options = db_options->options;
 
-    if(hash_val_test(opts, k_create_if_missing)) {
+    if(rb_hash_aref(opts, k_create_if_missing) == Qtrue) {
       options->create_if_missing = true;
+    } else {
+      options->create_if_missing = false;
     }
 
-    if(hash_val_test(opts, k_error_if_exists)) {
+    if(rb_hash_aref(opts, k_error_if_exists) == Qtrue) {
       options->error_if_exists = true;
+    } else {
+      options->error_if_exists = false;
     }
 
     VALUE v;
