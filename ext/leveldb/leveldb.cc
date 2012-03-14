@@ -107,13 +107,10 @@ static void set_db_option(VALUE o_options, VALUE opts) {
 
     VALUE v;
 
-    v = rb_hash_aref(opts, k_paranoid_checks);
-    if(!NIL_P(v)) {
-      if(Qtrue == v) {
-        options->paranoid_checks = true;
-      } else {
-        options->paranoid_checks = false;
-      }
+    if(rb_hash_aref(opts, k_paranoid_checks) == Qtrue) {
+      options->paranoid_checks = true;
+    } else {
+      options->paranoid_checks = false;
     }
 
     v = rb_hash_aref(opts, k_write_buffer_size);
