@@ -7,16 +7,21 @@ class DB
     ## Loads or creates a LevelDB database as necessary, stored on disk at
     ## +pathname+.
     def new(pathname, options = {})
-      options[:create_if_missing] = true
-      options[:error_if_exists] = false
-      make(path_string(pathname), options)
+      options ||= {}
+
+      make(path_string(pathname),
+           options.merge(:create_if_missing => true,
+                         :error_if_exists => false))
     end
 
     ## Creates a new LevelDB database stored on disk at +pathname+. Throws an
     ## exception if the database already exists.
-    def create pathname
+    def create(pathname, options = {})
+      options ||= {}
+
       make(path_string(pathname),
-           { :create_if_missing => true, :error_if_exists => true })
+           options.merge(:create_if_missing => true,
+                         :error_if_exists => true))
     end
 
     ## Loads a LevelDB database stored on disk at +pathname+. Throws an
