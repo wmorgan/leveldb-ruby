@@ -126,6 +126,9 @@ static void set_db_option(VALUE o_options, VALUE opts) {
     v = rb_hash_aref(opts, k_max_open_files);
     if(FIXNUM_P(v)) {
       options->max_open_files = NUM2INT(v);
+      rb_iv_set(o_options, "@max_open_files", v);
+    } else {
+      rb_iv_set(o_options, "@max_open_files", UINT2NUM(options->max_open_files));
     }
 
     v = rb_hash_aref(opts, k_block_cache_size);
@@ -680,12 +683,6 @@ static VALUE db_batch(int argc, VALUE* argv, VALUE self) {
 
 // -------------------------------------------------------
 // db_options methods
-static VALUE db_options_max_open_files(VALUE self) {
-  bound_db_options* db_options;
-  Data_Get_Struct(self, bound_db_options, db_options);
-  return INT2NUM(db_options->options->max_open_files);
-}
-
 static VALUE db_options_block_size(VALUE self) {
   bound_db_options* db_options;
   Data_Get_Struct(self, bound_db_options, db_options);
@@ -756,8 +753,6 @@ void Init_leveldb() {
   rb_define_method(c_batch, "delete", RUBY_METHOD_FUNC(batch_delete), 1);
 
   c_db_options = rb_define_class_under(m_leveldb, "Options", rb_cObject);
-  rb_define_method(c_db_options, "max_open_files",
-                   RUBY_METHOD_FUNC(db_options_max_open_files), 0);
   rb_define_method(c_db_options, "block_size",
                    RUBY_METHOD_FUNC(db_options_block_size), 0);
   rb_define_method(c_db_options, "block_restart_interval",

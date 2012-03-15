@@ -86,7 +86,7 @@ end
 
 class Options
   attr_reader :block_cache_size, :paranoid_checks,
-              :write_buffer_size
+              :write_buffer_size, :max_open_files
 end
 
 module CompressionType
