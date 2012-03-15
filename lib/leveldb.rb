@@ -85,7 +85,8 @@ class WriteBatch
 end
 
 class Options
-  attr_reader :block_cache_size
+  attr_reader :block_cache_size, :paranoid_checks,
+              :write_buffer_size
 end
 
 module CompressionType

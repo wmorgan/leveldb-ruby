@@ -109,13 +109,18 @@ static void set_db_option(VALUE o_options, VALUE opts) {
 
     if(rb_hash_aref(opts, k_paranoid_checks) == Qtrue) {
       options->paranoid_checks = true;
+      rb_iv_set(o_options, "@paranoid_checks", Qtrue);
     } else {
       options->paranoid_checks = false;
+      rb_iv_set(o_options, "@paranoid_checks", Qfalse);
     }
 
     v = rb_hash_aref(opts, k_write_buffer_size);
     if(FIXNUM_P(v)) {
       options->write_buffer_size = NUM2UINT(v);
+      rb_iv_set(o_options, "@write_buffer_size", v);
+    } else {
+      rb_iv_set(o_options, "@write_buffer_size", UINT2NUM(options->write_buffer_size));
     }
 
     v = rb_hash_aref(opts, k_max_open_files);
@@ -675,22 +680,6 @@ static VALUE db_batch(int argc, VALUE* argv, VALUE self) {
 
 // -------------------------------------------------------
 // db_options methods
-static VALUE db_options_paranoid_checks(VALUE self) {
-  bound_db_options* db_options;
-  Data_Get_Struct(self, bound_db_options, db_options);
-  if(db_options->options->paranoid_checks) {
-    return Qtrue;
-  } else {
-    return Qfalse;
-  }
-}
-
-static VALUE db_options_write_buffer_size(VALUE self) {
-  bound_db_options* db_options;
-  Data_Get_Struct(self, bound_db_options, db_options);
-  return UINT2NUM(db_options->options->write_buffer_size);
-}
-
 static VALUE db_options_max_open_files(VALUE self) {
   bound_db_options* db_options;
   Data_Get_Struct(self, bound_db_options, db_options);
@@ -767,10 +756,6 @@ void Init_leveldb() {
   rb_define_method(c_batch, "delete", RUBY_METHOD_FUNC(batch_delete), 1);
 
   c_db_options = rb_define_class_under(m_leveldb, "Options", rb_cObject);
-  rb_define_method(c_db_options, "paranoid_checks",
-                   RUBY_METHOD_FUNC(db_options_paranoid_checks), 0);
-  rb_define_method(c_db_options, "write_buffer_size",
-                   RUBY_METHOD_FUNC(db_options_write_buffer_size), 0);
   rb_define_method(c_db_options, "max_open_files",
                    RUBY_METHOD_FUNC(db_options_max_open_files), 0);
   rb_define_method(c_db_options, "block_size",
