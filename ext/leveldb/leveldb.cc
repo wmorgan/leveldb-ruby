@@ -140,22 +140,31 @@ static void set_db_option(VALUE o_options, VALUE opts) {
     v = rb_hash_aref(opts, k_block_size);
     if(FIXNUM_P(v)) {
       options->block_size = NUM2UINT(v);
+      rb_iv_set(o_options, "@block_size", v);
+    } else {
+      rb_iv_set(o_options, "@block_size", UINT2NUM(options->block_size));
     }
 
     v = rb_hash_aref(opts, k_block_restart_interval);
     if(FIXNUM_P(v)) {
       options->block_restart_interval = NUM2INT(v);
+      rb_iv_set(o_options, "@block_restart_interval", v);
+    } else {
+      rb_iv_set(o_options, "@block_restart_interval", UINT2NUM(options->block_restart_interval));
     }
 
     v = rb_hash_aref(opts, k_compression);
+    rb_iv_set(o_options, "@compression", UINT2NUM(options->compression));
     if(FIXNUM_P(v)) {
       switch(NUM2INT(v)) {
       case 0x0:
         options->compression = leveldb::kNoCompression;
+        rb_iv_set(o_options, "@compression", v);
         break;
 
       case 0x1:
         options->compression = leveldb::kSnappyCompression;
+        rb_iv_set(o_options, "@compression", v);
         break;
       }
     }
@@ -753,12 +762,6 @@ void Init_leveldb() {
   rb_define_method(c_batch, "delete", RUBY_METHOD_FUNC(batch_delete), 1);
 
   c_db_options = rb_define_class_under(m_leveldb, "Options", rb_cObject);
-  rb_define_method(c_db_options, "block_size",
-                   RUBY_METHOD_FUNC(db_options_block_size), 0);
-  rb_define_method(c_db_options, "block_restart_interval",
-                   RUBY_METHOD_FUNC(db_options_block_restart_interval), 0);
-  rb_define_method(c_db_options, "compression",
-                   RUBY_METHOD_FUNC(db_options_compression), 0);
 
   c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
 }
