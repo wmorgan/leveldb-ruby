@@ -60,6 +60,16 @@ static void db_free(bound_db* db) {
   delete db;
 }
 
+static bool check_uint_val(VALUE v, const char* const type_name_p) {
+  if(v == Qnil) {
+    return false;
+  } else if(FIXNUM_P(v)) {
+    return true;
+  } else {
+    rb_raise(rb_eTypeError, "invalid type for %s", type_name_p);
+  }
+}
+
 static void set_db_option(VALUE o_options, VALUE opts, leveldb::Options* options) {
   if(!NIL_P(o_options)) {
     Check_Type(opts, T_HASH);
@@ -91,7 +101,7 @@ static void set_db_option(VALUE o_options, VALUE opts, leveldb::Options* options
     }
 
     v = rb_hash_aref(opts, k_write_buffer_size);
-    if(FIXNUM_P(v)) {
+    if(check_uint_val(v, "write_buffer_size")) {
       options->write_buffer_size = NUM2UINT(v);
       rb_iv_set(o_options, "@write_buffer_size", v);
     } else {

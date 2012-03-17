@@ -53,6 +53,12 @@ class DBOptionsTest < Test::Unit::TestCase
     assert_equal db.options.write_buffer_size, (10 * 1042)
   end
 
+  def test_write_buffer_size_raise
+    assert_raise TypeError, "invalid type for write_buffer_size" do
+      db = LevelDB::DB.new(@path, :write_buffer_size => "1234")
+    end
+  end
+
   def test_max_open_files_default
     db = LevelDB::DB.new(@path)
     assert_equal db.options.max_open_files, 1000
