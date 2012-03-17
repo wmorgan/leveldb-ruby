@@ -60,38 +60,9 @@ static void db_free(bound_db* db) {
   delete db;
 }
 
-typedef struct bound_db_options {
-  leveldb::Options* options;
-
-  bound_db_options()
-    : options(0)
-  {
-  }
-
-  ~bound_db_options() {
-    if(options) {
-      if(options->block_cache) {
-        delete options->block_cache;
-        options->block_cache = 0;
-      }
-
-      delete options;
-      options = 0;
-    }
-  }
-} bound_db_options;
-
-static void db_options_free(bound_db_options* options) {
-  delete options;
-}
-
-static void set_db_option(VALUE o_options, VALUE opts) {
+static void set_db_option(VALUE o_options, VALUE opts, leveldb::Options* options) {
   if(!NIL_P(o_options)) {
     Check_Type(opts, T_HASH);
-
-    bound_db_options* db_options;
-    Data_Get_Struct(o_options, bound_db_options, db_options);
-    leveldb::Options* options = db_options->options;
 
     if(rb_hash_aref(opts, k_create_if_missing) == Qtrue) {
       options->create_if_missing = true;
@@ -254,13 +225,11 @@ static VALUE db_make(int argc, VALUE* argv, VALUE self) {
   auto_ptr<bound_db> db(new bound_db);
   std::string pathname = std::string((char*)RSTRING_PTR(v_pathname));
 
-  auto_ptr<bound_db_options> db_options(new bound_db_options);
-  db_options->options = new leveldb::Options;
-  leveldb::Options* options = db_options->options;
-  VALUE o_options = Data_Wrap_Struct(c_db_options, NULL, db_options_free, db_options.release());
-  set_db_option(o_options, v_options);
+  leveldb::Options options;
+  VALUE o_options = rb_class_new_instance(0, NULL, c_db_options);
+  set_db_option(o_options, v_options, &options);
 
-  leveldb::Status status = leveldb::DB::Open(*(options), pathname, &db->db);
+  leveldb::Status status = leveldb::DB::Open(options, pathname, &db->db);
   VALUE o_db = Data_Wrap_Struct(self, NULL, db_free, db.release());
   RAISE_ON_ERROR(status);
 
@@ -688,26 +657,6 @@ static VALUE db_batch(int argc, VALUE* argv, VALUE self) {
   leveldb::Status status = db->db->Write(writeOptions, &batch->batch);
   RAISE_ON_ERROR(status);
   return Qtrue;
-}
-
-// -------------------------------------------------------
-// db_options methods
-static VALUE db_options_block_size(VALUE self) {
-  bound_db_options* db_options;
-  Data_Get_Struct(self, bound_db_options, db_options);
-  return UINT2NUM(db_options->options->block_size);
-}
-
-static VALUE db_options_block_restart_interval(VALUE self) {
-  bound_db_options* db_options;
-  Data_Get_Struct(self, bound_db_options, db_options);
-  return INT2NUM(db_options->options->block_restart_interval);
-}
-
-static VALUE db_options_compression(VALUE self) {
-  bound_db_options* db_options;
-  Data_Get_Struct(self, bound_db_options, db_options);
-  return INT2NUM(db_options->options->compression);
 }
 
 extern "C" {
