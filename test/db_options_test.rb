@@ -7,6 +7,27 @@ class DBOptionsTest < Test::Unit::TestCase
     @path = File.expand_path(File.join('..', 'db_test.db'), __FILE__)
   end
 
+  def test_create_if_missing_default
+    db = LevelDB::DB.make(@path, {})
+    assert_equal db.options.create_if_missing, false
+  end
+
+  def test_create_if_missing
+    db = LevelDB::DB.make(@path, :create_if_missing => true)
+    assert_equal db.options.create_if_missing, true
+  end
+
+  def test_error_if_exists_default
+    db = LevelDB::DB.make(@path, {})
+    assert_equal db.options.error_if_exists, false
+  end
+
+  def test_error_if_exists
+    FileUtils.rm_rf @path
+    db = LevelDB::DB.make(@path, :error_if_exists => true, :create_if_missing => true)
+    assert_equal db.options.error_if_exists, true
+  end
+
   def test_paranoid_check_default
     db = LevelDB::DB.new(@path)
     assert_equal db.options.paranoid_checks, false

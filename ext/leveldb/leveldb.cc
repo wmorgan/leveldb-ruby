@@ -66,14 +66,18 @@ static void set_db_option(VALUE o_options, VALUE opts, leveldb::Options* options
 
     if(rb_hash_aref(opts, k_create_if_missing) == Qtrue) {
       options->create_if_missing = true;
+      rb_iv_set(o_options, "@create_if_missing", Qtrue);
     } else {
       options->create_if_missing = false;
+      rb_iv_set(o_options, "@create_if_missing", Qfalse);
     }
 
     if(rb_hash_aref(opts, k_error_if_exists) == Qtrue) {
       options->error_if_exists = true;
+      rb_iv_set(o_options, "@error_if_exists", Qtrue);
     } else {
       options->error_if_exists = false;
+      rb_iv_set(o_options, "@error_if_exists", Qfalse);
     }
 
     VALUE v;
