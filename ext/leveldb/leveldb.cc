@@ -128,12 +128,12 @@ static void set_db_option(VALUE o_options, VALUE opts, leveldb::Options* options
     rb_iv_set(o_options, "@compression", UINT2NUM(options->compression));
     if(FIXNUM_P(v)) {
       switch(NUM2INT(v)) {
-      case 0x0:
+      case leveldb::kNoCompression:
         options->compression = leveldb::kNoCompression;
         rb_iv_set(o_options, "@compression", v);
         break;
 
-      case 0x1:
+      case leveldb::kSnappyCompression:
         options->compression = leveldb::kSnappyCompression;
         rb_iv_set(o_options, "@compression", v);
         break;
