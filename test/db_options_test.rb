@@ -7,6 +7,15 @@ class DBOptionsTest < Test::Unit::TestCase
     @path = File.expand_path(File.join('..', 'db_test.db'), __FILE__)
   end
 
+  def assert_raise_type_error(msg)
+    begin
+      yield
+      assert_fail("don't raise TypeError")
+    rescue TypeError => e
+      assert_equal(msg, e.to_s)
+    end
+  end
+
   def test_create_if_missing_default
     db = LevelDB::DB.make(@path, {})
     assert_equal db.options.create_if_missing, false
@@ -15,6 +24,12 @@ class DBOptionsTest < Test::Unit::TestCase
   def test_create_if_missing
     db = LevelDB::DB.make(@path, :create_if_missing => true)
     assert_equal db.options.create_if_missing, true
+  end
+
+  def test_create_if_missing_invalid
+    assert_raise_type_error "invalid type for create_if_missing" do
+      db = LevelDB::DB.make(@path, :create_if_missing => "true")
+    end
   end
 
   def test_error_if_exists_default
@@ -26,6 +41,12 @@ class DBOptionsTest < Test::Unit::TestCase
     FileUtils.rm_rf @path
     db = LevelDB::DB.make(@path, :error_if_exists => true, :create_if_missing => true)
     assert_equal db.options.error_if_exists, true
+  end
+
+  def test_error_if_exists_invalid
+    assert_raise_type_error "invalid type for error_if_exists" do
+      LevelDB::DB.make(@path, :error_if_exists => 1)
+    end
   end
 
   def test_paranoid_check_default
@@ -43,6 +64,12 @@ class DBOptionsTest < Test::Unit::TestCase
     assert_equal db.options.paranoid_checks, false
   end
 
+  def test_paranoid_check_invalid
+    assert_raise_type_error "invalid type for paranoid_checks" do
+      LevelDB::DB.new(@path, :paranoid_checks => "on")
+    end
+  end
+
   def test_write_buffer_size_default
     db = LevelDB::DB.new(@path)
     assert_equal db.options.write_buffer_size, (4 * 1024 * 1024)
@@ -54,7 +81,7 @@ class DBOptionsTest < Test::Unit::TestCase
   end
 
   def test_write_buffer_size_raise
-    assert_raise TypeError, "invalid type for write_buffer_size" do
+    assert_raise_type_error "invalid type for write_buffer_size" do
       db = LevelDB::DB.new(@path, :write_buffer_size => "1234")
     end
   end

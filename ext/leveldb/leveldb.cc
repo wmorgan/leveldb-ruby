@@ -70,43 +70,61 @@ static bool check_uint_val(VALUE v, const char* const type_name_p) {
   }
 }
 
+static bool check_bool_val(VALUE v, const char* const type_name_p) {
+  if(v == Qnil || v == Qfalse) {
+    return false;
+  } else if(v == Qtrue) {
+    return true;
+  } else {
+    rb_raise(rb_eTypeError, "invalid type for %s", type_name_p);
+  }
+}
+
+static void set_val(VALUE opts, VALUE key, VALUE db_options, bool* pOptionVal) {
+  VALUE v = rb_hash_aref(opts, key);
+  VALUE set_v;
+  if(NIL_P(v) || v == Qfalse) {
+    *pOptionVal = false;
+    set_v = Qfalse;
+  } else if(v == Qtrue){
+    *pOptionVal = true;
+    set_v = Qtrue;
+  } else {
+    rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(key)));
+  }
+
+  string param("@");
+  param += rb_id2name(SYM2ID(key));
+  rb_iv_set(db_options, param.c_str(), set_v);
+}
+
+static void set_val(VALUE opts, VALUE key, VALUE db_options, size_t* pOptionVal) {
+  VALUE v = rb_hash_aref(opts, key);
+  VALUE set_v;
+  if(NIL_P(v)) {
+    set_v = UINT2NUM(*pOptionVal);
+  } else if(FIXNUM_P(v)) {
+    *pOptionVal = NUM2UINT(v);
+    set_v = v;
+  } else {
+    rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(key)));
+  }
+
+  string param("@");
+  param += rb_id2name(SYM2ID(key));
+  rb_iv_set(db_options, param.c_str(), set_v);
+}
+
 static void set_db_option(VALUE o_options, VALUE opts, leveldb::Options* options) {
   if(!NIL_P(o_options)) {
     Check_Type(opts, T_HASH);
 
-    if(rb_hash_aref(opts, k_create_if_missing) == Qtrue) {
-      options->create_if_missing = true;
-      rb_iv_set(o_options, "@create_if_missing", Qtrue);
-    } else {
-      options->create_if_missing = false;
-      rb_iv_set(o_options, "@create_if_missing", Qfalse);
-    }
-
-    if(rb_hash_aref(opts, k_error_if_exists) == Qtrue) {
-      options->error_if_exists = true;
-      rb_iv_set(o_options, "@error_if_exists", Qtrue);
-    } else {
-      options->error_if_exists = false;
-      rb_iv_set(o_options, "@error_if_exists", Qfalse);
-    }
+    set_val(opts, k_create_if_missing, o_options, &(options->create_if_missing));
+    set_val(opts, k_error_if_exists, o_options, &(options->error_if_exists));
+    set_val(opts, k_paranoid_checks, o_options, &(options->paranoid_checks));
+    set_val(opts, k_write_buffer_size, o_options, &(options->write_buffer_size));
 
     VALUE v;
-
-    if(rb_hash_aref(opts, k_paranoid_checks) == Qtrue) {
-      options->paranoid_checks = true;
-      rb_iv_set(o_options, "@paranoid_checks", Qtrue);
-    } else {
-      options->paranoid_checks = false;
-      rb_iv_set(o_options, "@paranoid_checks", Qfalse);
-    }
-
-    v = rb_hash_aref(opts, k_write_buffer_size);
-    if(check_uint_val(v, "write_buffer_size")) {
-      options->write_buffer_size = NUM2UINT(v);
-      rb_iv_set(o_options, "@write_buffer_size", v);
-    } else {
-      rb_iv_set(o_options, "@write_buffer_size", UINT2NUM(options->write_buffer_size));
-    }
 
     v = rb_hash_aref(opts, k_max_open_files);
     if(FIXNUM_P(v)) {
