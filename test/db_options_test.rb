@@ -10,7 +10,7 @@ class DBOptionsTest < Test::Unit::TestCase
   def assert_raise_type_error(msg)
     begin
       yield
-      assert_fail("don't raise TypeError")
+      flunk("don't raise TypeError")
     rescue TypeError => e
       assert_equal(msg, e.to_s)
     end
@@ -96,6 +96,12 @@ class DBOptionsTest < Test::Unit::TestCase
     assert_equal db.options.max_open_files, 2000
   end
 
+  def test_max_open_files_invalid
+    assert_raise_type_error "invalid type for max_open_files" do
+      LevelDB::DB.new(@path, :max_open_files => "2000")
+    end
+  end
+
   def test_cache_size_default
     db = LevelDB::DB.new(@path)
     assert_equal db.options.block_cache_size, nil
@@ -104,6 +110,12 @@ class DBOptionsTest < Test::Unit::TestCase
   def test_cache_size
     db = LevelDB::DB.new(@path, :block_cache_size => 10 * 1024 * 1024)
     assert_equal db.options.block_cache_size, (10 * 1024 * 1024)
+  end
+
+  def test_cache_size_invalid
+    assert_raise_type_error "invalid type for block_cache_size" do
+      db = LevelDB::DB.new(@path, :block_cache_size => false)
+    end
   end
 
   def test_block_size_default
@@ -116,6 +128,12 @@ class DBOptionsTest < Test::Unit::TestCase
     assert_equal db.options.block_size, (2 * 1024)
   end
 
+  def test_block_size_invalid
+    assert_raise_type_error "invalid type for block_size" do
+      LevelDB::DB.new(@path, :block_size => true)
+    end
+  end
+
   def test_block_restart_interval_default
     db = LevelDB::DB.new(@path)
     assert_equal db.options.block_restart_interval, 16
@@ -126,6 +144,12 @@ class DBOptionsTest < Test::Unit::TestCase
     assert_equal db.options.block_restart_interval, 32
   end
 
+  def test_block_restart_interval_invalid
+    assert_raise_type_error "invalid type for block_restart_interval" do
+      LevelDB::DB.new(@path, {:block_restart_interval => "abc"})
+    end
+  end
+
   def test_compression_default
     db = LevelDB::DB.new(@path)
     assert_equal db.options.compression, LevelDB::CompressionType::SnappyCompression
@@ -134,5 +158,17 @@ class DBOptionsTest < Test::Unit::TestCase
   def test_compression
     db = LevelDB::DB.new(@path, :compression => LevelDB::CompressionType::NoCompression)
     assert_equal db.options.compression, LevelDB::CompressionType::NoCompression
+  end
+
+  def test_compression_invalid_type
+    assert_raise_type_error "invalid type for compression" do
+      LevelDB::DB.new(@path, :compression => "1234")
+    end
+  end
+
+  def test_compression_invalid_range
+    assert_raise_type_error "invalid type for compression" do
+      LevelDB::DB.new(@path, :compression => 999)
+    end
   end
 end

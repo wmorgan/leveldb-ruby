@@ -115,6 +115,23 @@ static void set_val(VALUE opts, VALUE key, VALUE db_options, size_t* pOptionVal)
   rb_iv_set(db_options, param.c_str(), set_v);
 }
 
+static void set_val(VALUE opts, VALUE key, VALUE db_options, int* pOptionVal) {
+  VALUE v = rb_hash_aref(opts, key);
+  VALUE set_v;
+  if(NIL_P(v)) {
+    set_v = INT2NUM(*pOptionVal);
+  } else if(FIXNUM_P(v)) {
+    *pOptionVal = NUM2INT(v);
+    set_v = v;
+  } else {
+    rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(key)));
+  }
+
+  string param("@");
+  param += rb_id2name(SYM2ID(key));
+  rb_iv_set(db_options, param.c_str(), set_v);
+}
+
 static void set_db_option(VALUE o_options, VALUE opts, leveldb::Options* options) {
   if(!NIL_P(o_options)) {
     Check_Type(opts, T_HASH);
@@ -123,52 +140,42 @@ static void set_db_option(VALUE o_options, VALUE opts, leveldb::Options* options
     set_val(opts, k_error_if_exists, o_options, &(options->error_if_exists));
     set_val(opts, k_paranoid_checks, o_options, &(options->paranoid_checks));
     set_val(opts, k_write_buffer_size, o_options, &(options->write_buffer_size));
+    set_val(opts, k_max_open_files, o_options, &(options->max_open_files));
+    set_val(opts, k_block_size, o_options, &(options->block_size));
+    set_val(opts, k_block_restart_interval, o_options, &(options->block_restart_interval));
 
     VALUE v;
-
-    v = rb_hash_aref(opts, k_max_open_files);
-    if(FIXNUM_P(v)) {
-      options->max_open_files = NUM2INT(v);
-      rb_iv_set(o_options, "@max_open_files", v);
-    } else {
-      rb_iv_set(o_options, "@max_open_files", UINT2NUM(options->max_open_files));
-    }
-
     v = rb_hash_aref(opts, k_block_cache_size);
-    if(FIXNUM_P(v)) {
-      options->block_cache = leveldb::NewLRUCache(NUM2INT(v));
-      rb_iv_set(o_options, "@block_cache_size", v);
-    }
-
-    v = rb_hash_aref(opts, k_block_size);
-    if(FIXNUM_P(v)) {
-      options->block_size = NUM2UINT(v);
-      rb_iv_set(o_options, "@block_size", v);
-    } else {
-      rb_iv_set(o_options, "@block_size", UINT2NUM(options->block_size));
-    }
-
-    v = rb_hash_aref(opts, k_block_restart_interval);
-    if(FIXNUM_P(v)) {
-      options->block_restart_interval = NUM2INT(v);
-      rb_iv_set(o_options, "@block_restart_interval", v);
-    } else {
-      rb_iv_set(o_options, "@block_restart_interval", UINT2NUM(options->block_restart_interval));
+    if(!NIL_P(v)) {
+      if(FIXNUM_P(v)) {
+        options->block_cache = leveldb::NewLRUCache(NUM2INT(v));
+        rb_iv_set(o_options, "@block_cache_size", v);
+      } else {
+        rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(k_block_cache_size)));
+      }
     }
 
     v = rb_hash_aref(opts, k_compression);
     rb_iv_set(o_options, "@compression", UINT2NUM(options->compression));
-    if(FIXNUM_P(v)) {
-      switch(NUM2INT(v)) {
-      case leveldb::kNoCompression:
-        options->compression = leveldb::kNoCompression;
-        rb_iv_set(o_options, "@compression", v);
-        break;
+    if(!NIL_P(v)) {
+      if(FIXNUM_P(v)) {
+        switch(NUM2INT(v)) {
+        case leveldb::kNoCompression:
+          options->compression = leveldb::kNoCompression;
+          rb_iv_set(o_options, "@compression", v);
+          break;
 
-      case leveldb::kSnappyCompression:
-        options->compression = leveldb::kSnappyCompression;
-        rb_iv_set(o_options, "@compression", v);
-        break;
+        case leveldb::kSnappyCompression:
+          options->compression = leveldb::kSnappyCompression;
+          rb_iv_set(o_options, "@compression", v);
+          break;
+
+        default:
+          rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(k_compression)));
+          break;
+        }
+      } else {
+        rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(k_compression)));
       }
     }
   }
