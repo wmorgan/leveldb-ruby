@@ -60,26 +60,6 @@ static void db_free(bound_db* db) {
   delete db;
 }
 
-static bool check_uint_val(VALUE v, const char* const type_name_p) {
-  if(v == Qnil) {
-    return false;
-  } else if(FIXNUM_P(v)) {
-    return true;
-  } else {
-    rb_raise(rb_eTypeError, "invalid type for %s", type_name_p);
-  }
-}
-
-static bool check_bool_val(VALUE v, const char* const type_name_p) {
-  if(v == Qnil || v == Qfalse) {
-    return false;
-  } else if(v == Qtrue) {
-    return true;
-  } else {
-    rb_raise(rb_eTypeError, "invalid type for %s", type_name_p);
-  }
-}
-
 static void set_val(VALUE opts, VALUE key, VALUE db_options, bool* pOptionVal) {
   VALUE v = rb_hash_aref(opts, key);
   VALUE set_v;
