@@ -5,6 +5,7 @@
 #ifndef STORAGE_LEVELDB_DB_DB_IMPL_H_
 #define STORAGE_LEVELDB_DB_DB_IMPL_H_
 
+#include <deque>
 #include <set>
 #include "db/dbformat.h"
 #include "db/log_writer.h"
@@ -59,6 +60,8 @@ class DBImpl : public DB {
 
  private:
   friend class DB;
+  struct CompactionState;
+  struct Writer;
 
   Iterator* NewInternalIterator(const ReadOptions&,
                                 SequenceNumber* latest_snapshot);
@@ -85,14 +88,8 @@ class DBImpl : public DB {
 
   Status WriteLevel0Table(MemTable* mem, VersionEdit* edit, Version* base);
 
-  // Only thread is allowed to log at a time.
-  struct LoggerId { };          // Opaque identifier for logging thread
-  void AcquireLoggingResponsibility(LoggerId* self);
-  void ReleaseLoggingResponsibility(LoggerId* self);
-
   Status MakeRoomForWrite(bool force /* compact even if there is room? */);
-
-  struct CompactionState;
+  WriteBatch* BuildBatchGroup(Writer** last_writer);
 
   void MaybeScheduleCompaction();
   static void BGWork(void* db);
@@ -108,6 +105,7 @@ class DBImpl : public DB {
   // Constant after construction
   Env* const env_;
   const InternalKeyComparator internal_comparator_;
+  const InternalFilterPolicy internal_filter_policy_;
   const Options options_;  // options_.comparator == &internal_comparator_
   bool owns_info_log_;
   bool owns_cache_;
@@ -129,8 +127,11 @@ class DBImpl : public DB {
   WritableFile* logfile_;
   uint64_t logfile_number_;
   log::Writer* log_;
-  LoggerId* logger_;            // NULL, or the id of the current logging thread
-  port::CondVar logger_cv_;     // For threads waiting to log
+
+  // Queue of writers.
+  std::deque<Writer*> writers_;
+  WriteBatch* tmp_batch_;
+
   SnapshotList snapshots_;
 
   // Set of table files to protect from deletion because they are
@@ -185,6 +186,7 @@ class DBImpl : public DB {
 // it is not equal to src.info_log.
 extern Options SanitizeOptions(const std::string& db,
                                const InternalKeyComparator* icmp,
+                               const InternalFilterPolicy* ipolicy,
                                const Options& src);
 
 }  // namespace leveldb
