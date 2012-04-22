@@ -6,20 +6,29 @@ class DB
   class << self
     ## Loads or creates a LevelDB database as necessary, stored on disk at
     ## +pathname+.
-    def new pathname
-      make path_string(pathname), true, false
+    def new(pathname, options = {})
+      options ||= {}
+
+      make(path_string(pathname),
+           options.merge(:create_if_missing => true,
+                         :error_if_exists => false))
     end
 
     ## Creates a new LevelDB database stored on disk at +pathname+. Throws an
     ## exception if the database already exists.
-    def create pathname
-      make path_string(pathname), true, true
+    def create(pathname, options = {})
+      options ||= {}
+
+      make(path_string(pathname),
+           options.merge(:create_if_missing => true,
+                         :error_if_exists => true))
     end
 
     ## Loads a LevelDB database stored on disk at +pathname+. Throws an
     ## exception unless the database already exists.
     def load pathname
-      make path_string(pathname), false, false
+      make(path_string(pathname),
+           { :create_if_missing => false, :error_if_exists => false })
     end
 
     private
@@ -31,6 +40,7 @@ class DB
   end
 
   attr_reader :pathname
+  attr_reader :options
 
   alias :includes? :exists?
   alias :contains? :exists?
@@ -72,5 +82,18 @@ class WriteBatch
   class << self
     private :new
   end
+end
+
+class Options
+  attr_reader :create_if_missing, :error_if_exists,
+              :block_cache_size, :paranoid_checks,
+              :write_buffer_size, :max_open_files,
+              :block_size, :block_restart_interval,
+              :compression
+end
+
+module CompressionType
+  NoCompression     = 0x0
+  SnappyCompression = 0x1
 end
 end # module LevelDB

@@ -1,8 +1,12 @@
 #include <ruby.h>
+#include <memory>
 
 #include "leveldb/db.h"
+#include "leveldb/cache.h"
 #include "leveldb/slice.h"
 #include "leveldb/write_batch.h"
+
+using namespace std;
 
 static VALUE m_leveldb;
 static VALUE c_db;
@@ -19,6 +23,17 @@ static VALUE k_class;
 static VALUE k_name;
 static ID to_s;
 static leveldb::ReadOptions uncached_read_options;
+
+static VALUE c_db_options;
+static VALUE k_create_if_missing;
+static VALUE k_error_if_exists;
+static VALUE k_paranoid_checks;
+static VALUE k_write_buffer_size;
+static VALUE k_block_cache_size;
+static VALUE k_block_size;
+static VALUE k_block_restart_interval;
+static VALUE k_compression;
+static VALUE k_max_open_files;
 
 // support 1.9 and 1.8
 #ifndef RSTRING_PTR
@@ -45,21 +60,201 @@ static void db_free(bound_db* db) {
   delete db;
 }
 
-static VALUE db_make(VALUE klass, VALUE v_pathname, VALUE v_create_if_necessary, VALUE v_break_if_exists) {
+static void set_val(VALUE opts, VALUE key, VALUE db_options, bool* pOptionVal) {
+  VALUE v = rb_hash_aref(opts, key);
+  VALUE set_v;
+  if(NIL_P(v) || v == Qfalse) {
+    *pOptionVal = false;
+    set_v = Qfalse;
+  } else if(v == Qtrue){
+    *pOptionVal = true;
+    set_v = Qtrue;
+  } else {
+    rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(key)));
+  }
+
+  string param("@");
+  param += rb_id2name(SYM2ID(key));
+  rb_iv_set(db_options, param.c_str(), set_v);
+}
+
+static void set_val(VALUE opts, VALUE key, VALUE db_options, size_t* pOptionVal) {
+  VALUE v = rb_hash_aref(opts, key);
+  VALUE set_v;
+  if(NIL_P(v)) {
+    set_v = UINT2NUM(*pOptionVal);
+  } else if(FIXNUM_P(v)) {
+    *pOptionVal = NUM2UINT(v);
+    set_v = v;
+  } else {
+    rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(key)));
+  }
+
+  string param("@");
+  param += rb_id2name(SYM2ID(key));
+  rb_iv_set(db_options, param.c_str(), set_v);
+}
+
+static void set_val(VALUE opts, VALUE key, VALUE db_options, int* pOptionVal) {
+  VALUE v = rb_hash_aref(opts, key);
+  VALUE set_v;
+  if(NIL_P(v)) {
+    set_v = INT2NUM(*pOptionVal);
+  } else if(FIXNUM_P(v)) {
+    *pOptionVal = NUM2INT(v);
+    set_v = v;
+  } else {
+    rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(key)));
+  }
+
+  string param("@");
+  param += rb_id2name(SYM2ID(key));
+  rb_iv_set(db_options, param.c_str(), set_v);
+}
+
+static void set_db_option(VALUE o_options, VALUE opts, leveldb::Options* options) {
+  if(!NIL_P(o_options)) {
+    Check_Type(opts, T_HASH);
+
+    set_val(opts, k_create_if_missing, o_options, &(options->create_if_missing));
+    set_val(opts, k_error_if_exists, o_options, &(options->error_if_exists));
+    set_val(opts, k_paranoid_checks, o_options, &(options->paranoid_checks));
+    set_val(opts, k_write_buffer_size, o_options, &(options->write_buffer_size));
+    set_val(opts, k_max_open_files, o_options, &(options->max_open_files));
+    set_val(opts, k_block_size, o_options, &(options->block_size));
+    set_val(opts, k_block_restart_interval, o_options, &(options->block_restart_interval));
+
+    VALUE v;
+    v = rb_hash_aref(opts, k_block_cache_size);
+    if(!NIL_P(v)) {
+      if(FIXNUM_P(v)) {
+        options->block_cache = leveldb::NewLRUCache(NUM2INT(v));
+        rb_iv_set(o_options, "@block_cache_size", v);
+      } else {
+        rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(k_block_cache_size)));
+      }
+    }
+
+    v = rb_hash_aref(opts, k_compression);
+    rb_iv_set(o_options, "@compression", UINT2NUM(options->compression));
+    if(!NIL_P(v)) {
+      if(FIXNUM_P(v)) {
+        switch(NUM2INT(v)) {
+        case leveldb::kNoCompression:
+          options->compression = leveldb::kNoCompression;
+          rb_iv_set(o_options, "@compression", v);
+          break;
+
+        case leveldb::kSnappyCompression:
+          options->compression = leveldb::kSnappyCompression;
+          rb_iv_set(o_options, "@compression", v);
+          break;
+
+        default:
+          rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(k_compression)));
+          break;
+        }
+      } else {
+        rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(k_compression)));
+      }
+    }
+  }
+}
+
+/*
+ * call-seq:
+ *   make(pathname, options)
+ *
+ * open level-db database
+ *
+ * pathname path for database
+ *
+ * [options[ :create_if_missing ]] create if database doesn't exit
+ *
+ * [options[ :error_if_exists ]] raise error if database exists
+ *
+ * [options[ :paranoid_checks ]] If true, the implementation will do aggressive checking of the
+ *                               data it is processing and will stop early if it detects any
+ *                               errors.  This may have unforeseen ramifications: for example, a
+ *                               corruption of one DB entry may cause a large number of entries to
+ *                               become unreadable or for the entire DB to become unopenable.
+ *
+ *                               Default: false
+ * [options[ :write_buffer_size ]] Amount of data to build up in memory (backed by an unsorted log
+ *                                 on disk) before converting to a sorted on-disk file.
+ *
+ *                                 Larger values increase performance, especially during bulk
+ *                                 loads.
+ *                                 Up to two write buffers may be held in memory at the same time,
+ *                                 so you may wish to adjust this parameter to control memory
+ *                                 usage.
+ *                                 Also, a larger write buffer will result in a longer recovery
+ *                                 time the next time the database is opened.
+ *
+ *                                 Default: 4MB
+ * [options[ :max_open_files ]] Number of open files that can be used by the DB.  You may need to
+ *                              increase this if your database has a large working set (budget
+ *                              one open file per 2MB of working set).
+ *
+ *                              Default: 1000
+ * [options[ :block_cache_size ]] Control over blocks (user data is stored in a set of blocks,
+ *                                and a block is the unit of reading from disk).
+ *
+ *                                If non nil, use the specified cache size.
+ *                                If nil, leveldb will automatically create and use an 8MB
+ *                                internal cache.
+ *
+ *                                Default: nil
+ * [options[ :block_size ]] Approximate size of user data packed per block.  Note that the
+ *                          block size specified here corresponds to uncompressed data.  The
+ *                          actual size of the unit read from disk may be smaller if
+ *                          compression is enabled.  This parameter can be changed dynamically.
+ *
+ *                          Default: 4K
+ * [options[ :block_restart_interval ]] Number of keys between restart points for delta
+ *                                      encoding of keys.
+ *                                      This parameter can be changed dynamically.
+ *                                      Most clients should leave this parameter alone.
+ *
+ *                                      Default: 16
+ * [options[ :compression ]] LevelDB::CompressionType::SnappyCompression or
+ *                           LevelDB::CompressionType::NoCompression.
+ *
+ *                           Compress blocks using the specified compression algorithm.
+ *                           This parameter can be changed dynamically.
+ *
+ *                           Default: LevelDB::CompressionType::SnappyCompression,
+ *                           which gives lightweight but fast compression.
+ *
+ *                           Typical speeds of SnappyCompression on an Intel(R) Core(TM)2 2.4GHz:
+ *                               ~200-500MB/s compression
+ *                               ~400-800MB/s decompression
+ *                           Note that these speeds are significantly faster than most
+ *                           persistent storage speeds, and therefore it is typically never
+ *                           worth switching to NoCompression.  Even if the input data is
+ *                           incompressible, the SnappyCompression implementation will
+ *                           efficiently detect that and will switch to uncompressed mode.
+ * [return] LevelDB::DB instance
+ */
+static VALUE db_make(int argc, VALUE* argv, VALUE self) {
+  VALUE v_pathname, v_options;
+  rb_scan_args(argc, argv, "11", &v_pathname, &v_options);
   Check_Type(v_pathname, T_STRING);
 
-  bound_db* db = new bound_db;
+  auto_ptr<bound_db> db(new bound_db);
   std::string pathname = std::string((char*)RSTRING_PTR(v_pathname));
 
   leveldb::Options options;
-  if(RTEST(v_create_if_necessary)) options.create_if_missing = true;
-  if(RTEST(v_break_if_exists)) options.error_if_exists = true;
+  VALUE o_options = rb_class_new_instance(0, NULL, c_db_options);
+  set_db_option(o_options, v_options, &options);
+
   leveldb::Status status = leveldb::DB::Open(options, pathname, &db->db);
+  VALUE o_db = Data_Wrap_Struct(self, NULL, db_free, db.release());
   RAISE_ON_ERROR(status);
 
-  VALUE o_db = Data_Wrap_Struct(klass, NULL, db_free, db);
-  VALUE argv[1] = { v_pathname };
-  rb_obj_call_init(o_db, 1, argv);
+  rb_iv_set(o_db, "@options", o_options);
+  VALUE init_argv[1] = { v_pathname };
+  rb_obj_call_init(o_db, 1, init_argv);
 
   return o_db;
 }
@@ -494,6 +689,16 @@ void Init_leveldb() {
   k_reversed = ID2SYM(rb_intern("reversed"));
   k_class = rb_intern("class");
   k_name = rb_intern("name");
+  k_create_if_missing = ID2SYM(rb_intern("create_if_missing"));
+  k_error_if_exists = ID2SYM(rb_intern("error_if_exists"));
+  k_paranoid_checks = ID2SYM(rb_intern("paranoid_checks"));
+  k_write_buffer_size = ID2SYM(rb_intern("write_buffer_size"));
+  k_block_cache_size = ID2SYM(rb_intern("block_cache_size"));
+  k_block_size = ID2SYM(rb_intern("block_size"));
+  k_block_restart_interval = ID2SYM(rb_intern("block_restart_interval"));
+  k_compression = ID2SYM(rb_intern("compression"));
+  k_max_open_files = ID2SYM(rb_intern("max_open_files"));
+
   to_s = rb_intern("to_s");
   uncached_read_options = leveldb::ReadOptions();
   uncached_read_options.fill_cache = false;
@@ -501,7 +706,7 @@ void Init_leveldb() {
   m_leveldb = rb_define_module("LevelDB");
 
   c_db = rb_define_class_under(m_leveldb, "DB", rb_cObject);
-  rb_define_singleton_method(c_db, "make", RUBY_METHOD_FUNC(db_make), 3);
+  rb_define_singleton_method(c_db, "make", RUBY_METHOD_FUNC(db_make), -1);
   rb_define_method(c_db, "initialize", RUBY_METHOD_FUNC(db_init), 1);
   rb_define_method(c_db, "get", RUBY_METHOD_FUNC(db_get), -1);
   rb_define_method(c_db, "delete", RUBY_METHOD_FUNC(db_delete), -1);
@@ -524,6 +729,8 @@ void Init_leveldb() {
   rb_define_singleton_method(c_batch, "make", RUBY_METHOD_FUNC(batch_make), 0);
   rb_define_method(c_batch, "put", RUBY_METHOD_FUNC(batch_put), 2);
   rb_define_method(c_batch, "delete", RUBY_METHOD_FUNC(batch_delete), 1);
+
+  c_db_options = rb_define_class_under(m_leveldb, "Options", rb_cObject);
 
   c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
 }
