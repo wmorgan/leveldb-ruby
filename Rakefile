@@ -33,4 +33,8 @@ Rake::TestTask.new(:test) do |test|
   test.verbose = true
 end
 
+task :build do |t|
+  sh "cd ext/leveldb && ruby extconf.rb && make"
+end
+
 # vim: syntax=ruby
