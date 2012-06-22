@@ -236,9 +236,7 @@ static void set_db_option(VALUE o_options, VALUE opts, leveldb::Options* options
  *                           efficiently detect that and will switch to uncompressed mode.
  * [return] LevelDB::DB instance
  */
-static VALUE db_make(int argc, VALUE* argv, VALUE self) {
-  VALUE v_pathname, v_options;
-  rb_scan_args(argc, argv, "11", &v_pathname, &v_options);
+static VALUE db_make(VALUE self, VALUE v_pathname, VALUE v_options) {
   Check_Type(v_pathname, T_STRING);
 
   auto_ptr<bound_db> db(new bound_db);
@@ -706,7 +704,7 @@ void Init_leveldb() {
   m_leveldb = rb_define_module("LevelDB");
 
   c_db = rb_define_class_under(m_leveldb, "DB", rb_cObject);
-  rb_define_singleton_method(c_db, "make", RUBY_METHOD_FUNC(db_make), -1);
+  rb_define_singleton_method(c_db, "make", RUBY_METHOD_FUNC(db_make), 2);
   rb_define_method(c_db, "initialize", RUBY_METHOD_FUNC(db_init), 1);
   rb_define_method(c_db, "get", RUBY_METHOD_FUNC(db_get), -1);
   rb_define_method(c_db, "delete", RUBY_METHOD_FUNC(db_delete), -1);
