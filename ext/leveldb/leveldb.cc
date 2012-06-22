@@ -21,7 +21,7 @@ static VALUE k_to;
 static VALUE k_reversed;
 static VALUE k_class;
 static VALUE k_name;
-static ID to_s;
+static ID k_to_s;
 static leveldb::ReadOptions uncached_read_options;
 
 static VALUE c_db_options;
@@ -494,7 +494,7 @@ static VALUE iter_init(VALUE self, VALUE db, VALUE options) {
 
     if(RTEST(key_to)) {
       iter->check_limit = true;
-      iter->key_to_str = RUBY_STRING_TO_SLICE(rb_funcall(key_to, to_s, 0)).ToString();
+      iter->key_to_str = RUBY_STRING_TO_SLICE(rb_funcall(key_to, k_to_s, 0)).ToString();
     }
 
     rb_iv_set(self, "@from", key_from);
@@ -509,7 +509,7 @@ static VALUE iter_init(VALUE self, VALUE db, VALUE options) {
   }
 
   if(RTEST(key_from)) {
-    iter->iterator->Seek(RUBY_STRING_TO_SLICE(rb_funcall(key_from, to_s, 0)));
+    iter->iterator->Seek(RUBY_STRING_TO_SLICE(rb_funcall(key_from, k_to_s, 0)));
   } else {
     if(iter->reversed) {
       iter->iterator->SeekToLast();
@@ -698,8 +698,8 @@ void Init_leveldb() {
   k_block_restart_interval = ID2SYM(rb_intern("block_restart_interval"));
   k_compression = ID2SYM(rb_intern("compression"));
   k_max_open_files = ID2SYM(rb_intern("max_open_files"));
+  k_to_s = rb_intern("to_s");
 
-  to_s = rb_intern("to_s");
   uncached_read_options = leveldb::ReadOptions();
   uncached_read_options.fill_cache = false;
 
