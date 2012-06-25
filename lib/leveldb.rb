@@ -86,6 +86,11 @@ class WriteBatch
 end
 
 class Options
+  DEFAULT_MAX_OPEN_FILES = 1000
+  DEFAULT_WRITE_BUFFER_SIZE = 4 * 1024 * 1024
+  DEFAULT_BLOCK_SIZE = 4 * 1024
+  DEFAULT_BLOCK_RESTART_INTERVAL = 16
+
   attr_reader :create_if_missing, :error_if_exists,
               :block_cache_size, :paranoid_checks,
               :write_buffer_size, :max_open_files,
