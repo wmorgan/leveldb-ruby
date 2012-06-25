@@ -7,88 +7,65 @@ class DBOptionsTest < Test::Unit::TestCase
     @path = File.expand_path(File.join('..', 'db_test.db'), __FILE__)
   end
 
-  def assert_raise_type_error(msg)
-    begin
-      yield
-      flunk("don't raise TypeError")
-    rescue TypeError => e
-      assert_equal(msg, e.to_s)
-    end
-  end
-
-  def test_create_if_missing_default
-    db = LevelDB::DB.make(@path, {})
-    assert_equal db.options.create_if_missing, false
-  end
-
-  def test_create_if_missing
-    db = LevelDB::DB.make(@path, :create_if_missing => true)
-    assert_equal db.options.create_if_missing, true
-  end
-
-  def test_create_if_missing_invalid
-    assert_raise_type_error "invalid type for create_if_missing" do
-      db = LevelDB::DB.make(@path, :create_if_missing => "true")
-    end
-  end
-
-  def test_error_if_exists_default
-    db = LevelDB::DB.make(@path, {})
-    assert_equal db.options.error_if_exists, false
-  end
-
-  def test_error_if_exists
+  def teardown
     FileUtils.rm_rf @path
-    db = LevelDB::DB.make(@path, :error_if_exists => true, :create_if_missing => true)
-    assert_equal db.options.error_if_exists, true
   end
 
-  def test_error_if_exists_invalid
-    assert_raise_type_error "invalid type for error_if_exists" do
-      LevelDB::DB.make(@path, :error_if_exists => 1)
-    end
+  def assert_false x; assert !x end
+
+  def test_create_if_missing_behavior
+    assert_raises(LevelDB::Error) { LevelDB::DB.make(@path, {}) } # create if missing is false
+    db = LevelDB::DB.make @path, :create_if_missing => true
+    assert db.options.create_if_missing
+    db.close!
+    db2 = LevelDB::DB.make @path, {} # should work the second time
+    assert_false db2.options.create_if_missing
+    db2.close!
+
+    FileUtils.rm_rf @path
+    assert_nothing_raised { LevelDB::DB.new @path } # by default should set create_if_missing to true
+  end
+
+  def test_error_if_exists_behavior
+    db = LevelDB::DB.make @path, :create_if_missing => true
+    assert_false db.options.error_if_exists
+    db.close!
+
+    assert_raises(LevelDB::Error) { LevelDB::DB.make @path, :create_if_missing => true, :error_if_exists => true }
   end
 
   def test_paranoid_check_default
-    db = LevelDB::DB.new(@path)
-    assert_equal db.options.paranoid_checks, false
+    db = LevelDB::DB.new @path
+    assert_false db.options.paranoid_checks
   end
 
   def test_paranoid_check_on
-    db = LevelDB::DB.new(@path, :paranoid_checks => true)
-    assert_equal db.options.paranoid_checks, true
+    db = LevelDB::DB.new @path, :paranoid_checks => true
+    assert db.options.paranoid_checks
   end
 
   def test_paranoid_check_off
-    db = LevelDB::DB.new(@path, :paranoid_checks => false)
-    assert_equal db.options.paranoid_checks, false
-  end
-
-  def test_paranoid_check_invalid
-    assert_raise_type_error "invalid type for paranoid_checks" do
-      LevelDB::DB.new(@path, :paranoid_checks => "on")
-    end
+    db = LevelDB::DB.new @path, :paranoid_checks => false
+    assert_false db.options.paranoid_checks
   end
 
   def test_write_buffer_size_default
-    db = LevelDB::DB.new(@path)
-    assert_equal db.options.write_buffer_size, (4 * 1024 * 1024)
+    db = LevelDB::DB.new @path
+    assert_equal LevelDB::Options::DEFAULT_WRITE_BUFFER_SIZE, db.options.write_buffer_size
   end
 
   def test_write_buffer_size
-    db = LevelDB::DB.new(@path, :write_buffer_size => 10 * 1042)
-    assert_equal db.options.write_buffer_size, (10 * 1042)
+    db = LevelDB::DB.new @path, :write_buffer_size => 10 * 1042
+    assert_equal (10 * 1042), db.options.write_buffer_size
   end
 
-  def test_write_buffer_size_raise
-    assert_raise_type_error "invalid type for write_buffer_size" do
-      db = LevelDB::DB.new(@path, :write_buffer_size => "1234")
-    end
+  def test_write_buffer_size_invalid
+    assert_raises(TypeError) { LevelDB::DB.new @path, :write_buffer_size => "1234" }
   end
 
   def test_max_open_files_default
-    db = LevelDB::DB.new(@path)
-    assert_equal db.options.max_open_files, 1000
+    db = LevelDB::DB.new @path
+    assert_equal LevelDB::Options::DEFAULT_MAX_OPEN_FILES, db.options.max_open_files
   end
 
   def test_max_open_files
@@ -97,78 +74,63 @@ class DBOptionsTest < Test::Unit::TestCase
   end
 
   def test_max_open_files_invalid
-    assert_raise_type_error "invalid type for max_open_files" do
-      LevelDB::DB.new(@path, :max_open_files => "2000")
-    end
+    assert_raises(TypeError) { LevelDB::DB.new @path, :max_open_files => "2000" }
   end
 
   def test_cache_size_default
-    db = LevelDB::DB.new(@path)
-    assert_equal db.options.block_cache_size, nil
+    db = LevelDB::DB.new @path
+    assert_nil db.options.block_cache_size
   end
 
   def test_cache_size
-    db = LevelDB::DB.new(@path, :block_cache_size => 10 * 1024 * 1024)
-    assert_equal db.options.block_cache_size, (10 * 1024 * 1024)
+    db = LevelDB::DB.new @path, :block_cache_size => 10 * 1024 * 1024
+    assert_equal (10 * 1024 * 1024), db.options.block_cache_size
   end
 
   def test_cache_size_invalid
-    assert_raise_type_error "invalid type for block_cache_size" do
-      db = LevelDB::DB.new(@path, :block_cache_size => false)
-    end
+    assert_raises(TypeError) { LevelDB::DB.new @path, :block_cache_size => false }
   end
 
   def test_block_size_default
-    db = LevelDB::DB.new(@path)
-    assert_equal db.options.block_size, (4 * 1024)
+    db = LevelDB::DB.new @path
+    assert_equal LevelDB::Options::DEFAULT_BLOCK_SIZE, db.options.block_size
   end
 
   def test_block_size
-    db = LevelDB::DB.new(@path, :block_size => (2 * 1024))
-    assert_equal db.options.block_size, (2 * 1024)
+    db = LevelDB::DB.new @path, :block_size => (2 * 1024)
+    assert_equal (2 * 1024), db.options.block_size
   end
 
   def test_block_size_invalid
-    assert_raise_type_error "invalid type for block_size" do
-      LevelDB::DB.new(@path, :block_size => true)
-    end
+    assert_raises(TypeError) { LevelDB::DB.new @path, :block_size => true }
   end
 
   def test_block_restart_interval_default
-    db = LevelDB::DB.new(@path)
-    assert_equal db.options.block_restart_interval, 16
+    db = LevelDB::DB.new @path
+    assert_equal LevelDB::Options::DEFAULT_BLOCK_RESTART_INTERVAL, db.options.block_restart_interval
   end
 
   def test_block_restart_interval
-    db = LevelDB::DB.new(@path, {:block_restart_interval => 32})
+    db = LevelDB::DB.new @path, :block_restart_interval => 32
     assert_equal db.options.block_restart_interval, 32
   end
 
   def test_block_restart_interval_invalid
-    assert_raise_type_error "invalid type for block_restart_interval" do
-      LevelDB::DB.new(@path, {:block_restart_interval => "abc"})
-    end
+    assert_raises(TypeError) { LevelDB::DB.new @path, :block_restart_interval => "abc" }
   end
 
   def test_compression_default
-    db = LevelDB::DB.new(@path)
+    db = LevelDB::DB.new @path
     assert_equal db.options.compression, LevelDB::CompressionType::SnappyCompression
   end
 
   def test_compression
-    db = LevelDB::DB.new(@path, :compression => LevelDB::CompressionType::NoCompression)
+    db = LevelDB::DB.new @path, :compression => LevelDB::CompressionType::NoCompression
     assert_equal db.options.compression, LevelDB::CompressionType::NoCompression
   end
 
   def test_compression_invalid_type
-    assert_raise_type_error "invalid type for compression" do
-      LevelDB::DB.new(@path, :compression => "1234")
-    end
-  end
-
-  def test_compression_invalid_range
-    assert_raise_type_error "invalid type for compression" do
-      LevelDB::DB.new(@path, :compression => 999)
-    end
+    assert_raises(TypeError) { LevelDB::DB.new @path, :compression => "1234" }
+    assert_raises(TypeError) { LevelDB::DB.new @path, :compression => 999 }
   end
 end
