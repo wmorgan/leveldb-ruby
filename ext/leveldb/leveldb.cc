@@ -60,7 +60,7 @@ static void db_free(bound_db* db) {
   delete db;
 }
 
-static void set_val(VALUE opts, VALUE key, VALUE db_options, bool* pOptionVal) {
+static void sync_vals(VALUE opts, VALUE key, VALUE db_options, bool* pOptionVal) {
   VALUE v = rb_hash_aref(opts, key);
   VALUE set_v;
   if(NIL_P(v) || v == Qfalse) {
@@ -78,7 +78,7 @@ static void set_val(VALUE opts, VALUE key, VALUE db_options, bool* pOptionVal) {
   rb_iv_set(db_options, param.c_str(), set_v);
 }
 
-static void set_val(VALUE opts, VALUE key, VALUE db_options, size_t* pOptionVal) {
+static void sync_vals(VALUE opts, VALUE key, VALUE db_options, size_t* pOptionVal) {
   VALUE v = rb_hash_aref(opts, key);
   VALUE set_v;
   if(NIL_P(v)) {
@@ -95,7 +95,7 @@ static void set_val(VALUE opts, VALUE key, VALUE db_options, size_t* pOptionVal)
   rb_iv_set(db_options, param.c_str(), set_v);
 }
 
-static void set_val(VALUE opts, VALUE key, VALUE db_options, int* pOptionVal) {
+static void sync_vals(VALUE opts, VALUE key, VALUE db_options, int* pOptionVal) {
   VALUE v = rb_hash_aref(opts, key);
   VALUE set_v;
   if(NIL_P(v)) {
@@ -116,13 +116,13 @@ static void set_db_option(VALUE o_options, VALUE opts, leveldb::Options* options
   if(!NIL_P(o_options)) {
     Check_Type(opts, T_HASH);
 
-    set_val(opts, k_create_if_missing, o_options, &(options->create_if_missing));
-    set_val(opts, k_error_if_exists, o_options, &(options->error_if_exists));
-    set_val(opts, k_paranoid_checks, o_options, &(options->paranoid_checks));
-    set_val(opts, k_write_buffer_size, o_options, &(options->write_buffer_size));
-    set_val(opts, k_max_open_files, o_options, &(options->max_open_files));
-    set_val(opts, k_block_size, o_options, &(options->block_size));
-    set_val(opts, k_block_restart_interval, o_options, &(options->block_restart_interval));
+    sync_vals(opts, k_create_if_missing, o_options, &(options->create_if_missing));
+    sync_vals(opts, k_error_if_exists, o_options, &(options->error_if_exists));
+    sync_vals(opts, k_paranoid_checks, o_options, &(options->paranoid_checks));
+    sync_vals(opts, k_write_buffer_size, o_options, &(options->write_buffer_size));
+    sync_vals(opts, k_max_open_files, o_options, &(options->max_open_files));
+    sync_vals(opts, k_block_size, o_options, &(options->block_size));
+    sync_vals(opts, k_block_restart_interval, o_options, &(options->block_restart_interval));
 
     VALUE v;
     v = rb_hash_aref(opts, k_block_cache_size);
