@@ -13,6 +13,8 @@ static VALUE c_db;
 static VALUE c_iter;
 static VALUE c_batch;
 static VALUE c_error;
+static VALUE c_no_compression;
+static VALUE c_snappy_compression;
 static VALUE k_fill;
 static VALUE k_verify;
 static VALUE k_sync;
@@ -88,52 +90,32 @@ static void sync_vals(VALUE opts, VALUE key, VALUE db_options, int* pOptionVal) 
 }
 
 static void set_db_option(VALUE o_options, VALUE opts, leveldb::Options* options) {
-  if(!NIL_P(o_options)) {
-    Check_Type(opts, T_HASH);
+  if(NIL_P(o_options)) return;
+  Check_Type(opts, T_HASH);
 
-    sync_vals(opts, k_create_if_missing, o_options, &(options->create_if_missing));
-    sync_vals(opts, k_error_if_exists, o_options, &(options->error_if_exists));
-    sync_vals(opts, k_paranoid_checks, o_options, &(options->paranoid_checks));
-    sync_vals(opts, k_write_buffer_size, o_options, &(options->write_buffer_size));
-    sync_vals(opts, k_max_open_files, o_options, &(options->max_open_files));
-    sync_vals(opts, k_block_size, o_options, &(options->block_size));
-    sync_vals(opts, k_block_restart_interval, o_options, &(options->block_restart_interval));
+  sync_vals(opts, k_create_if_missing, o_options, &(options->create_if_missing));
+  sync_vals(opts, k_error_if_exists, o_options, &(options->error_if_exists));
+  sync_vals(opts, k_paranoid_checks, o_options, &(options->paranoid_checks));
+  sync_vals(opts, k_write_buffer_size, o_options, &(options->write_buffer_size));
+  sync_vals(opts, k_max_open_files, o_options, &(options->max_open_files));
+  sync_vals(opts, k_block_size, o_options, &(options->block_size));
+  sync_vals(opts, k_block_restart_interval, o_options, &(options->block_restart_interval));
 
-    VALUE v;
-    v = rb_hash_aref(opts, k_block_cache_size);
-    if(!NIL_P(v)) {
-      if(FIXNUM_P(v)) {
-        options->block_cache = leveldb::NewLRUCache(NUM2INT(v));
-        rb_iv_set(o_options, "@block_cache_size", v);
-      } else {
-        rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(k_block_cache_size)));
-      }
-    }
-
-    v = rb_hash_aref(opts, k_compression);
-    rb_iv_set(o_options, "@compression", UINT2NUM(options->compression));
-    if(!NIL_P(v)) {
-      if(FIXNUM_P(v)) {
-        switch(NUM2INT(v)) {
-        case leveldb::kNoCompression:
-          options->compression = leveldb::kNoCompression;
-          rb_iv_set(o_options, "@compression", v);
-          break;
-
-        case leveldb::kSnappyCompression:
-          options->compression = leveldb::kSnappyCompression;
-          rb_iv_set(o_options, "@compression", v);
-          break;
-
-        default:
-          rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(k_compression)));
-          break;
-        }
-      } else {
-        rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(k_compression)));
-      }
-    }
+  VALUE v = rb_hash_aref(opts, k_block_cache_size);
+  if(!NIL_P(v)) {
+    options->block_cache = leveldb::NewLRUCache(NUM2INT(v));
+    rb_iv_set(o_options, "@block_cache_size", v);
   }
+
+  v = rb_hash_aref(opts, k_compression);
+  if(!NIL_P(v)) {
+    if(v == c_no_compression) options->compression = leveldb::kNoCompression;
+    else if(v == c_snappy_compression) options->compression = leveldb::kSnappyCompression;
+    else rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(k_compression)));
+  }
+
+  if(options->compression == leveldb::kNoCompression) rb_iv_set(o_options, "@compression", c_no_compression);
+  else if(options->compression == leveldb::kSnappyCompression) rb_iv_set(o_options, "@compression", c_snappy_compression);
 }
 
 /*
@@ -706,6 +688,11 @@ void Init_leveldb() {
   rb_define_method(c_batch, "delete", RUBY_METHOD_FUNC(batch_delete), 1);
 
   c_db_options = rb_define_class_under(m_leveldb, "Options", rb_cObject);
+
+  VALUE m_ctype = rb_define_module_under(m_leveldb, "CompressionType");
+  VALUE c_base = rb_define_class_under(m_ctype, "Base", rb_cObject);
+  c_no_compression = rb_define_class_under(m_ctype, "NoCompression", c_base);
+  c_snappy_compression = rb_define_class_under(m_ctype, "SnappyCompression", c_base);
 
   c_error = rb_define_class_under(m_leveldb, "Error", rb_eStandardError);
 }

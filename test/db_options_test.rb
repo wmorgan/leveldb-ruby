@@ -112,7 +112,7 @@ class DBOptionsTest < Test::Unit::TestCase
 
   def test_block_restart_interval
     db = LevelDB::DB.new @path, :block_restart_interval => 32
-    assert_equal db.options.block_restart_interval, 32
+    assert_equal 32, db.options.block_restart_interval
   end
 
   def test_block_restart_interval_invalid
@@ -121,12 +121,12 @@ class DBOptionsTest < Test::Unit::TestCase
 
   def test_compression_default
     db = LevelDB::DB.new @path
-    assert_equal db.options.compression, LevelDB::CompressionType::SnappyCompression
+    assert_equal LevelDB::Options::DEFAULT_COMPRESSION, db.options.compression
   end
 
   def test_compression
     db = LevelDB::DB.new @path, :compression => LevelDB::CompressionType::NoCompression
-    assert_equal db.options.compression, LevelDB::CompressionType::NoCompression
+    assert_equal LevelDB::CompressionType::NoCompression, db.options.compression
   end
 
   def test_compression_invalid_type
