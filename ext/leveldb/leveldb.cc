@@ -289,7 +289,7 @@ static leveldb::WriteOptions parse_write_options(VALUE options) {
 
   if(!NIL_P(options)) {
     Check_Type(options, T_HASH);
-    VALUE v_sync = rb_hash_aref(options, k_sync)
+    VALUE v_sync = rb_hash_aref(options, k_sync);
     if(!NIL_P(v_sync)) writeOptions.sync = RTEST(v_sync);
   }
 
