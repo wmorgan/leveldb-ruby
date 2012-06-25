@@ -1,3 +1,9 @@
+// TODO
+// 
+// fix boolean tests against true/false
+// see if sync_ stuff can be reduced somewhat
+// compression level not returning proper object, an integer instead
+
 #include <ruby.h>
 #include <memory>
 
