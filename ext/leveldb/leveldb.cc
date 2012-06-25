@@ -273,10 +273,12 @@ static leveldb::ReadOptions parse_read_options(VALUE options) {
 
   if(!NIL_P(options)) {
     Check_Type(options, T_HASH);
-    if(rb_hash_aref(options, k_fill) == Qfalse)
-      readOptions.fill_cache = false;
-    if(rb_hash_aref(options, k_verify) == Qtrue)
-      readOptions.verify_checksums = true;
+
+    VALUE v_fill = rb_hash_aref(options, k_fill);
+    VALUE v_verify = rb_hash_aref(options, k_verify);
+
+    if(!NIL_P(v_fill)) readOptions.fill_cache = RTEST(v_fill);
+    if(!NIL_P(v_verify)) readOptions.verify_checksums = RTEST(v_verify);
   }
 
   return readOptions;
@@ -287,8 +289,8 @@ static leveldb::WriteOptions parse_write_options(VALUE options) {
 
   if(!NIL_P(options)) {
     Check_Type(options, T_HASH);
-    if(rb_hash_aref(options, k_sync) == Qtrue)
-      writeOptions.sync = true;
+    VALUE v_sync = rb_hash_aref(options, k_sync)
+    if(!NIL_P(v_sync)) writeOptions.sync = RTEST(v_sync);
   }
 
   return writeOptions;
