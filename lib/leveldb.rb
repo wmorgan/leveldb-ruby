@@ -90,6 +90,7 @@ class Options
   DEFAULT_WRITE_BUFFER_SIZE = 4 * 1024 * 1024
   DEFAULT_BLOCK_SIZE = 4 * 1024
   DEFAULT_BLOCK_RESTART_INTERVAL = 16
+  DEFAULT_COMPRESSION = LevelDB::CompressionType::SnappyCompression
 
   attr_reader :create_if_missing, :error_if_exists,
               :block_cache_size, :paranoid_checks,
@@ -98,8 +99,4 @@ class Options
               :compression
 end
 
-module CompressionType
-  NoCompression     = 0x0
-  SnappyCompression = 0x1
-end
 end # module LevelDB
