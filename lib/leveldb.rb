@@ -47,6 +47,7 @@ class DB
   alias :member? :exists?
   alias :[] :get
   alias :[]= :put
+  alias :close! :close
 
   def each(*args, &block)
     i = iterator(*args)
