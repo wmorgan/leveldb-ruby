@@ -62,54 +62,29 @@ static void db_free(bound_db* db) {
 
 static void sync_vals(VALUE opts, VALUE key, VALUE db_options, bool* pOptionVal) {
   VALUE v = rb_hash_aref(opts, key);
-  VALUE set_v;
-  if(NIL_P(v) || v == Qfalse) {
-    *pOptionVal = false;
-    set_v = Qfalse;
-  } else if(v == Qtrue){
-    *pOptionVal = true;
-    set_v = Qtrue;
-  } else {
-    rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(key)));
-  }
 
+  if(!NIL_P(v)) *pOptionVal = RTEST(v);
   string param("@");
   param += rb_id2name(SYM2ID(key));
-  rb_iv_set(db_options, param.c_str(), set_v);
+  rb_iv_set(db_options, param.c_str(), *pOptionVal ? Qtrue : Qfalse);
 }
 
 static void sync_vals(VALUE opts, VALUE key, VALUE db_options, size_t* pOptionVal) {
   VALUE v = rb_hash_aref(opts, key);
-  VALUE set_v;
-  if(NIL_P(v)) {
-    set_v = UINT2NUM(*pOptionVal);
-  } else if(FIXNUM_P(v)) {
-    *pOptionVal = NUM2UINT(v);
-    set_v = v;
-  } else {
-    rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(key)));
-  }
 
+  if(!NIL_P(v)) *pOptionVal = NUM2UINT(v);
   string param("@");
   param += rb_id2name(SYM2ID(key));
-  rb_iv_set(db_options, param.c_str(), set_v);
+  rb_iv_set(db_options, param.c_str(), UINT2NUM(*pOptionVal));
 }
 
 static void sync_vals(VALUE opts, VALUE key, VALUE db_options, int* pOptionVal) {
   VALUE v = rb_hash_aref(opts, key);
-  VALUE set_v;
-  if(NIL_P(v)) {
-    set_v = INT2NUM(*pOptionVal);
-  } else if(FIXNUM_P(v)) {
-    *pOptionVal = NUM2INT(v);
-    set_v = v;
-  } else {
-    rb_raise(rb_eTypeError, "invalid type for %s", rb_id2name(SYM2ID(key)));
-  }
 
+  if(!NIL_P(v)) *pOptionVal = NUM2INT(v);
   string param("@");
   param += rb_id2name(SYM2ID(key));
-  rb_iv_set(db_options, param.c_str(), set_v);
+  rb_iv_set(db_options, param.c_str(), INT2NUM(*pOptionVal));
 }
 
 static void set_db_option(VALUE o_options, VALUE opts, leveldb::Options* options) {
