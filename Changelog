@@ -1,0 +1,4 @@
+0.15 / 2012-06-25
+- Expose configuration options via DB#options and allow setting in DB#new (thanks byplayer).
+- Update code to leveldb 1.5 release.
+- Add Changelog (finally!).
