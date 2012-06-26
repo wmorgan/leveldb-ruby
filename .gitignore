@@ -8,3 +8,4 @@ leveldb/libleveldb.a
 leveldb/leveldb.gyp
 pkg
 test/*.db
+ext/leveldb/mkmf.log
