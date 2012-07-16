@@ -37,4 +37,9 @@ task :build do |t|
   sh "cd ext/leveldb && ruby extconf.rb && make"
 end
 
+task :clean do |t|
+  sh "cd leveldb     && make clean"
+  sh "cd ext/leveldb && make clean"
+end
+
 # vim: syntax=ruby
