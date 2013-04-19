@@ -405,6 +405,8 @@ typedef struct current_iteration {
 } current_iteration;
 
 static void current_iteration_free(current_iteration* iter) {
+  delete iter->iterator;
+  iter->iterator = NULL;
   delete iter;
 }
 
