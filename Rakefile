@@ -1,41 +1,28 @@
 require 'rubygems'
 require 'rubygems/package_task'
-require 'find'
+require 'rake/testtask'
 
-spec = Gem::Specification.new do |s|
- s.name = "leveldb-ruby"
- s.version = "0.15"
- s.date = Time.now
- s.email = "wmorgan-leveldb-ruby-gemspec@masanjin.net"
- s.authors = ["William Morgan"]
- s.summary = "a Ruby binding to LevelDB"
- s.homepage = "http://github.com/wmorgan/leveldb-ruby"
- s.files = %w(README LICENSE ext/leveldb/extconf.rb ext/leveldb/platform.rb lib/leveldb.rb ext/leveldb/leveldb.cc leveldb/Makefile leveldb/build_detect_platform)
- Find.find("leveldb") { |x| s.files += [x] if x =~ /\.(cc|h)$/}
- s.extensions = %w(ext/leveldb/extconf.rb)
- s.executables = []
- s.extra_rdoc_files = %w(README ext/leveldb/leveldb.cc)
- s.rdoc_options = %w(-c utf8 --main README --title LevelDB)
- s.description = "LevelDB-Ruby is a Ruby binding to LevelDB."
- s.require_paths = ["lib", "ext"]
-end
-
+desc "Build the docs"
 task :rdoc do |t|
   sh "rm -rf doc; rdoc #{spec.rdoc_options.join(' ')} #{spec.extra_rdoc_files.join(' ')} lib/leveldb.rb"
 end
 
+spec = eval File.read(File.expand_path("../leveldb-ruby.gemspec", __FILE__))
 Gem::PackageTask.new spec do
 end
 
-require 'rake/testtask'
-Rake::TestTask.new(:test) do |test|
+Rake::TestTask.new(:test => :build) do |test|
   test.libs << 'ext' << 'test'
   test.pattern = 'test/**/*_test.rb'
   test.verbose = true
 end
 
+desc "Build the extension"
 task :build do |t|
   sh "cd ext/leveldb && ruby extconf.rb && make"
 end
+
+desc "Default task"
+task :default => :test
 
 # vim: syntax=ruby
