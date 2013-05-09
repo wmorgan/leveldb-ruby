@@ -17,6 +17,7 @@ spec = Gem::Specification.new do |s|
  s.extra_rdoc_files = %w(README ext/leveldb/leveldb.cc)
  s.rdoc_options = %w(-c utf8 --main README --title LevelDB)
  s.description = "LevelDB-Ruby is a Ruby binding to LevelDB."
+ s.require_paths = ["lib", "ext"]
 end
 
 task :rdoc do |t|
