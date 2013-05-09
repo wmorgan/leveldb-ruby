@@ -1,0 +1,20 @@
+PATH
+  remote: .
+  specs:
+    leveldb-ruby (0.15.1)
+
+GEM
+  remote: http://rubygems.org/
+  specs:
+    json (1.7.7)
+    rake (10.0.4)
+    rdoc (4.0.1)
+      json (~> 1.4)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  leveldb-ruby!
+  rake
+  rdoc
