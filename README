@@ -13,10 +13,13 @@ SYNOPSIS
   require 'rubygems' # on for ruby 1.8
   require 'leveldb'
 
-  ## make a new database
+  ## make a new database or open an existing one
+  ## this creates a directory with the specified path containing multiple files
   db = LevelDB::DB.new "/tmp/asdf"
 
   ## getting and setting
+  ## leveldb keys and values must be strings
+  ## arbitrary byte arrays can be stored by first encoding them as strings
   db.put "it", "works"               # => "works"
   db.get "it"                        # => "works"
 
@@ -44,10 +47,12 @@ SYNOPSIS
     map { |k, v| ... }
   # etc...
 
-  ## deleting
+  ## deleting key/value pairs
   db.delete "hello"       # => "there"
   db.delete "hello"       # => nil
 
+  ## to delete the database remove the directory and its contents
+  
 LICENSE
 
   Leveldb-ruby is available for your use under the terms of
