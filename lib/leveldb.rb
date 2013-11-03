@@ -59,6 +59,19 @@ class DB
   def keys; map { |k, v| k } end
   def values; map { |k, v| v } end
 
+  def snapshot(*args)
+    sn = Snapshot.new self, *args
+    if block_given?
+      begin
+        yield sn
+      ensure
+        sn.release
+      end
+    else
+      sn
+    end
+  end
+
   def inspect
     %(<#{self.class} #{@pathname.inspect}>)
   end
@@ -82,6 +95,38 @@ end
 class WriteBatch
   class << self
     private :new
+  end
+end
+
+# Snapshot has the same API as DB, restricted to read access.
+class Snapshot
+  include Enumerable
+
+  def self.new(db)
+    make db
+  end
+
+  def each(*args, &block)
+    i = iterator(*args)
+    i.each(&block) if block
+    i
+  end
+
+  def get(*args)
+    db.get(*args, snapshot: self)
+  end
+
+  alias :[] :get
+  alias :includes? :exists?
+  alias :contains? :exists?
+  alias :member? :exists?
+
+  def iterator(*args); db.iterator *args, snapshot: self end
+  def keys; map { |k, v| k } end
+  def values; map { |k, v| v } end
+
+  def inspect
+    %(<#{self.class} #{db.inspect} #{' (released)' if released?}>)
   end
 end
 
