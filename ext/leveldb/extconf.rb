@@ -3,7 +3,7 @@ require 'fileutils'
 require "./platform.rb"
 
 Dir.chdir "../../leveldb"
-system "OPT=\"-O2 -DNDEBUG -fPIC\" make libleveldb.a" or abort
+system "OPT=\"-O2 -DNDEBUG -fPIC\" make" or abort
 Dir.chdir "../ext/leveldb"
 
 set_platform_specific_variables!
