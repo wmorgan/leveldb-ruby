@@ -1,4 +1,4 @@
-require 'leveldb/leveldb' # the c extension
+require File.expand_path('../../ext/leveldb/leveldb', __FILE__) # the c extension
 
 module LevelDB
 class DB
